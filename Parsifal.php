@@ -29,7 +29,7 @@ class Parsifal {                                  // glue class of the extension
         return;
     }
 
-    foreach (TAGS as $key => $tag) { $parser->setHook ($tag, function  ($in, $ar, $parser, $frame) use ($tag) { 
+    foreach (TAGS as $key => $tag) { $parser->setHook ($tag, function  ($in, $ar, $parser, $frame) use ($tag) {
       if ( array_key_exists ("double", $ar) ) {
         $ar["number-of-instance"] = "1";
         //$res1 = TeXProcessor::lazyRender ($in, $ar, "amsmath", $parser, $frame);
@@ -46,8 +46,9 @@ class Parsifal {                                  // glue class of the extension
       return;  } );
      } // for every tag in TAGS implement a Latex-like parser hook
 
-    $parser->setHook ( 'block',            function ($in, $ar, $parser, $frame) { return  Parsifal::block ($in, $ar);}    );         // implement a <block> construct
+    $parser->setHook ( 'preamble', [ "TeXProcessor",  'renderPreamble']  );   
 
+    $parser->setHook ( 'block',            function ($in, $ar, $parser, $frame) { return  Parsifal::block ($in, $ar);}    );         // implement a <block> construct
 
   }
 
@@ -66,6 +67,9 @@ class Parsifal {                                  // glue class of the extension
     $text = preg_replace('/<\/amsmath>[ ]*\n</',                     '</amsmath><div class="parsifal" data-strut="newline"></div><', $text);
     $text = preg_replace('/<\/amsmath>[ ]*\n[ ]*\n[ ]*</',           '</amsmath><div class="parsifal" data-strut="empline"></div><', $text);
     $text = preg_replace('/<\/amsmath>[ ]*\n[ ]*\n[ ]\n[ ]*</',      '</amsmath><div class="parsifal" data-strut="twoline"></div><', $text);
+
+    // remove blanks and newlines after a preamble declaration, as mediawiki parser would generate spaces, <p> and <br> if we do not do this
+    $text = preg_replace('/<\/preamble>\s+/',    '</preamble>', $text);
 
    if ($VERBOSE) {TeXProcessor::debugLog( "-------- Parsifal::onParserBeforeInternalParse AFTER REPLACE".$text.  " \n");}
     return true;

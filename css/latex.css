@@ -21,6 +21,15 @@ html #limitSize a::after {content: ' OFF';}
 html.previewFlag #previewFlag a::after {content: ' ON' !important;}
 html #previewFlag a::after {content: ' OFF';}
 
+
+
+/* Better markup for the link in UI */
+html.usingCodeMirror #useCodeMirror a::after {content: ' CODE MIRROR' !important;}
+html #useCodeMirror a::after {content: ' NORMAL';}
+
+
+
+
 /* Better markup for the link in UI */
 /*
 html.sizeLimit #limitSize a::after {content: ' ON' !important;}

@@ -60,8 +60,8 @@ public static function precompile ($name) {
 
 
 
-/** generate stuff to be placed into the preamble but at the end of the preamble
- *  this is of particular importance for those parts of the preamble which cannot be precompiled
+/** generate stuff to be placed into the preamble (before begin{document}) but at the end of the preamble
+ *  this is of particular importance for those parts of the preamble which cannot be precompiled or which we want to add dynamically
  */
 private static function generateEndPreambleStuff ($ar, $tag) {
   global $wgServer, $wgScriptPath;
@@ -80,7 +80,6 @@ private static function generateEndPreambleStuff ($ar, $tag) {
   // MINTED
   $light = array ("manny", "rrt", "perldoc", "borland", "colorful", "murphy", "vs", "trac", "tango", "autumn", "bw", "emacs", "pastie", "friendly");
   $dark  = array ( "fruity", "vim", "native", "monokai");
-
   $mintedStyle = "emacs";
   // array key   "minted"  if present: adds package minted and uses style emacs
   //                       if present and has a value: uses that value as style for minted, provided the style is known
@@ -92,11 +91,8 @@ private static function generateEndPreambleStuff ($ar, $tag) {
 
     $mintedInit = "";
 
-   
      if ( array_key_exists ("minted-linenos", $ar) ) { $mintedInit .= "\\initMintedLinenos";}  else {}
      if ( array_key_exists ("minted-box",     $ar) ) { $mintedInit .= "\\initMintedBox";}       else {}
-
-
 
     $stuff = $stuff . "\\usepackage[outputdir=".CACHE_PATH.",newfloat=true,cache]{minted}\\usemintedstyle{".$mintedStyle."}".$mintedInit; 
 
@@ -109,15 +105,15 @@ private static function generateEndPreambleStuff ($ar, $tag) {
   if ( array_key_exists ("pa", $ar) ) {
     if ( str_starts_with ( $ar["pa"], "[[") &&  str_ends_with ( $ar["pa"], "]]" ) ) {
       $name = substr  ($ar["pa"], 2, -2 );
-      $configPage = "ParsifalTemplate/$name";                                                              // name of the MediaWiki:Sidebar$name configuration page of this portlet
-      $title      = Title::newFromText( $configPage, NS_MEDIAWIKI );                              // build title object for MediaWiki:SidebarTree
+      $configPage = "ParsifalMacro/$name";                                                            
+      $title      = Title::newFromText( $configPage, NS_MEDIAWIKI );                            
       if ($title == null) { throw new Exception ("no template file $name found for Parsifal");}                                                         // signal the caller that we did not find a configuration page for this portlet
       $wikipage   = new WikiPage ($title);                                                        // get the WikiPage for that title
       if ($wikipage == null) { throw new Exception ("no wikipage $name found for Parsifal");}                                                      // signal the caller that we did not get a WikiPage
       $contentObject = $wikipage->getContent();                                                   // and obtain the content object for that
-      if (!$contentObject) { throw new Exception ("no contentobject $name found for Parsifal"); }
-      $contentText = ContentHandler::getContentText( $contentObject );    
-      $addPreamble = extractPreContents ($contentText);
+
+      if ($contentObject) { $contentText = ContentHandler::getContentText( $contentObject );     $addPreamble = extractPreContents ($contentText); }
+      else { $addPreamble = "NO CONTENTOBJECT PREAMBLE FILE $name";}
     }   
   else { $addPreamble = $ar["pa"];}
   }
@@ -142,12 +138,9 @@ private static function generateEndPreambleStuff ($ar, $tag) {
 }
 EOD;
 
-  
-
   // dynamically inject the definitions of \dref and of \durl, since we here (in PHP) have the required paths accessible more easily than from LaTeX
   $urlStuff  = "\\newcommand{\dref}[2]{ \\StrSubstitute{#1}{ }{_}[\\temp]\\href{".   $wgServer.$wgScriptPath . "/index.php/"."\\temp}{#2}}";
   $urlStuff2 = "\\newcommand{\durl}[1]{ \\StrSubstitute{#1}{ }{_}[\\temp]\\href{".   $wgServer.$wgScriptPath . "/index.php/"."\\temp}{#1}}";
-
 
   $urlStuff  = "\\newcommand{\dref}[2]{ \\StrSubstitute{#1}{ }{_}[\\temp]\\href{".   $wgServer.$wgScriptPath . "/index.php?title="."\\temp}{#2}}";
   $urlStuff2 = "\\newcommand{\durl}[1]{ \\StrSubstitute{#1}{ }{_}[\\temp]\\href{".   $wgServer.$wgScriptPath . "/index.php?title="."\\temp}{#1}}";
@@ -209,6 +202,14 @@ private static function getRemainingContent( $parsedData, $amsContent ) {
 
 
 
+public static function renderPreamble ($in, $ar, $parser, $frame) {
+  $parser->storePreamble=$in;
+  return "";
+}
+
+
+
+
 public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
   global $wgServer, $wgScriptPath, $wgOut; 
   global $wgAllowVerbose;
@@ -217,7 +218,7 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
 
   $CACHE_PATH = CACHE_PATH;
 
-  $VERBOSE                  = true;   // $VERBOSE = false && $wgAllowVerbose;
+  $VERBOSE                 = true && $wgAllowVerbose;   // $VERBOSE = false && $wgAllowVerbose;
   $VERBOSE_APCU_CACHE      = false;    // write APCU_CACHE hit and miss info into the log file
   $VERBOSE_APCU_CACHE_FULL = false;    // write APCU_CACHE details on every cache entry into the log file - CAVE: immense amount of log information
 
@@ -225,7 +226,13 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
   $startTime   = microtime(true);
 
   $texSource   = ( $pipeMode ? "FILE" : null);  
-  $hash       = self::generateTex ($in, $tag, "pc_pdflatex", $ar, $texSource, false);      // generate file $hash_pc_pdflatex.tex and return a hash of raw LaTeX source located in Mediawiki
+
+
+  $parserPreamble = "";
+  if (property_exists($parser, 'storePreamble')) { $parserPreamble = $parser->storePreamble;}
+  // self::debugLog ("STOREDPREAMBLE: " . $parserPreamble. "\n"); 
+
+  $hash       = self::generateTex ($in, $tag, "pc_pdflatex", $ar, $texSource, false, $parserPreamble);      // generate file $hash_pc_pdflatex.tex and return a hash of raw LaTeX source located in Mediawiki
 
   if ($USE_APCU_CACHE) {  //   APCU_CACHE:  the result of lazyRender might be cached in APCU, the key is the $hash of the TeX source
     $cRet = apcu_fetch ( $hash, $cFlag );
@@ -608,10 +615,10 @@ static function cleanUpAll () {
   }  
 
 
-
+/* TODO DEPRECATE
 // TODO: missing
 private static function ensureFmtFile ($fmt) {$articleName = "MediaWiki:ParsifalTemplate/$fmt";}
-
+*/
 
 
 
@@ -620,9 +627,7 @@ private static function modifyTex ( string $rawContent, string $tag, string $mod
 
   $callback = function ($matches) {
 //    self::debugLog ( "\n\n Callback found " . count($matches) . " matches \n");
-    foreach ($matches as $value) {
-      
-    }
+    foreach ($matches as $value) {}
   };
 
  $newContent =  preg_replace_callback ("/\\dref\{([^{}]*)\}/", $callback, $rawContent);
@@ -645,13 +650,14 @@ private static function modifyTex ( string $rawContent, string $tag, string $mod
  *    $fc                  if true:   add a comment requesting the specific precompiled format file
  *                            false:  do not add comment, assume that we are using a command line format specification or not format at all 
  */
-private static function generateTex ( string $rawContent, string $tag, string $mode, $ar = array(), string &$cookedContent = null, $fc = true ) : string {
+private static function generateTex ( string $rawContent, string $tag, string $mode, $ar = array(), string &$cookedContent = null, $fc = true, $parserPreamble="" ) : string {
   $VERBOSE               = false;
   $CACHE_PATH            = CACHE_PATH;
   $TEMPLATE_PATH         = TEMPLATE_PATH;  
   $LATEX_FORMAT_PATH     = LATEX_FORMAT_PATH;  
   $PDFLATEX_FORMAT_PATH  = PDFLATEX_FORMAT_PATH;
-  $rawContent            = self::modifyTex ( $rawContent, $tag, $mode, $ar);
+
+//  $rawContent            = self::modifyTex ( $rawContent, $tag, $mode, $ar);
 
   if ($VERBOSE) {self::debugLog ("generateTex: attribute array is: ".print_r ($ar, true). "\n");}
   ksort($ar);                                             // sort array on keys, in place, so that the hash becomes independent on the sequence 
@@ -671,7 +677,7 @@ private static function generateTex ( string $rawContent, string $tag, string $m
       if (!file_exists ("$fmt.fmt")) { Parsifal::reconstructFormat ("ParsifalTemplate/$tag");}
       ASSERT_FILE ("$fmt.fmt");    
    
-      $endPreambleStuff   = self::generateEndPreambleStuff ($ar, $tag);
+      $endPreambleStuff   = self::generateEndPreambleStuff ($ar, $tag) . $parserPreamble;
       $beforeContentStuff = self::generateBeforeContentStuff ($ar, $tag);
       $template =  ($fc ? "%&$fmt\n" : "").$endPreambleStuff.$beforeContentStuff;    
       break;
@@ -680,7 +686,7 @@ private static function generateTex ( string $rawContent, string $tag, string $m
       $fmt="$PDFLATEX_FORMAT_PATH$tag";  $resultFile = "$CACHE_PATH{$hash}_$mode.tex";  
       if (!file_exists ("$fmt.fmt")) { Parsifal::reconstructFormat ("ParsifalTemplate/$tag");}
       ASSERT_FILE ("$fmt.fmt");    
-      $endPreambleStuff   = "%%% generateEndPreambleStuff\n " . self::generateEndPreambleStuff ($ar, $tag);
+      $endPreambleStuff   = "%%% generateEndPreambleStuff\n " . self::generateEndPreambleStuff ($ar, $tag) . $parserPreamble;
       $beforeContentStuff = "%%% generateBeforecontentStuff\n " . self::generateBeforeContentStuff ($ar, $tag);
 //      $template = "\\documentclass{standalone}". self::generateBeforeContentStuff ($ar, $tag);
 //      $template =  ($fc ? "%&$fmt\n" : "%%%NOSO%%%").$endPreambleStuff.$beforeContentStuff;   
@@ -724,7 +730,8 @@ private static function generateTex ( string $rawContent, string $tag, string $m
 /** GENERATE PNG from PDF via mutool. Transforms $hash.pdf into $hash$final.png
  */
 private static function Pdf2PngMT ($hash, $dpi, $inFinal, $outFinal) {
-  $VERBOSE = true;  $CACHE_PATH = CACHE_PATH;
+  $VERBOSE = false;  
+  $CACHE_PATH = CACHE_PATH;
   $cmd = MUTOOL. " convert -O resolution=$dpi -o $CACHE_PATH$hash$outFinal.png $CACHE_PATH$hash$inFinal.pdf  1-1";     // 1-1 is the page range    
   if ($VERBOSE) {$startTime = microtime(true);  self::debugLog ("Pdf2PngMT started for $hash, command is: " . $cmd . "\n");}
   // $output = null;  $retVal = null;  //  exec ( $cmd, $output, $retVal );  
@@ -733,10 +740,11 @@ private static function Pdf2PngMT ($hash, $dpi, $inFinal, $outFinal) {
   // if ($VERBOSE) {self::debugLog ("  return value $retVal  output ". print_r ($output, true));} 
 }
 
+
 // CURRENTLY USED 
 /** GENERATE PNG from PDF. Transforms $hash$inFinal.pdf into $hash$inFinal.png */
 private static function Pdf2PngHtmlMT ($hash, $scale, $inFinal, $outFinal, &$width, &$height, &$duration = null) {
-  $VERBOSE = true; 
+  $VERBOSE = false; 
   $JS_PATH = JS_PATH;  $CACHE_PATH = CACHE_PATH;  $PY_PATH = PY_PATH;
 
   $cmd = "$PY_PATH/make.py $scale $CACHE_PATH$hash$inFinal $CACHE_PATH$hash$outFinal ";
@@ -961,8 +969,8 @@ public static function executor ( string $cmd, &$output, &$error, $verbose=false
  *    string  error text as the error parser felt fit to parse it
  */
 private static function Tex2Pdf ($hash, $inFinal, $note) {
-  $VERBOSE = false;  
-  $CACHE_PATH = CACHE_PATH;
+  $VERBOSE     = false;  
+  $CACHE_PATH  = CACHE_PATH;
   $texFileName = "$CACHE_PATH$hash$inFinal.tex";
   $mrkFileName = "$CACHE_PATH$hash$inFinal.mrk";
 
@@ -970,7 +978,7 @@ private static function Tex2Pdf ($hash, $inFinal, $note) {
 
   $cmd = "pdflatex  --shell-escape --interaction=nonstopmode  -file-line-error-style -output-directory=$CACHE_PATH $texFileName"; 
 
-  if ($VERBOSE || true) { self::debugLog ("Tex2Pdf started ($note) for $hash$inFinal, command is: $cmd \n");}   
+  if ($VERBOSE) { self::debugLog ("Tex2Pdf started ($note) for $hash$inFinal, command is: $cmd \n");}   
   $retval = TeXProcessor::executor ( $cmd, $output, $error, false );
   //  127   a fundamental error such as command not found
   //   1   a small tex error, but might be worth mentioning
@@ -1129,12 +1137,14 @@ static function generatePdfBboxGS ($hashFinal) {
 /** get a width, height array for the Png file generated from the latex-dvi-dvipng path 
  *  assuming that the $hash.tex, $hash.dvi and $hash.png already exist or get 0 if file does not exist
  */
+/* TODO DEPRECATE
 static function getSizeFromDviPng ($hash) {
   $CACHE_PATH = CACHE_PATH;
   $path = $CACHE_PATH.$hash.".png";  
   if (file_exists ($path))  {$ims = getimagesize ( $path ); $ims["width"] = $ims[0]; $ims["height"] = $ims[1];} else { $ims = 0;}  
   return 0;
 }
+*/
 
 /** assume the existence of $hash_pdflatex.pdf, produce a png, use it for cropping and produce an adjusted html
 */

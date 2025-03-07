@@ -1,5 +1,5 @@
 
-console.error ("Parsifal runtime.js has started to load");
+//console.error ("Parsifal runtime.js has started to load");
 
 // the following is an already minified version of slidetoggle.js (see this directory, in package)
 // we can use it as a drop-in replacement for slideToggle since we do not have a jquery instance in place in all occaions where we need the Parsifal runtime
@@ -90,66 +90,6 @@ document.addEventListener('DOMContentLoaded', () => {
   fixDistances();
 });
 
-
-
-// TODO deprecate
-/*
-const showImage = (e) => {
- //console.warn ("-------- Parsifal runtime: showing image:", e.target.currentSrc, "width=", e.target.width, e.target,  " viewportwidth=", window.visualViewport.width, e);
-//  e.target.style.display = "inline-block";
-  e.target.style.display = "block"; // CAVE: with inline-block the images sometimes move a little bit after reload, with block it is a more stable layout
-}
-*/
-
-// deprecate - this should be in DantePresentations TODO
-/*
-const editPreviewPatch = () => {  // the clutch to PHP; we may adapat it to use CodeMirror, textarea or whatever client side editor we desire
-  console.log ("runtime: before initalizeTextarea");
-  initializeTextarea();
-  console.log ("runtime: after initalizeTextarea");
-  let params = (new URL (document.location)).searchParams;
-  if (params.get("editormode") == "codemirror") {
-    initializeCodeMirror ();  // additionally initialize a code mirror instance
-  }
-};
-*/
-
-// TODO: deprecate
-/*
-function initializeCodeMirror () {
-  var myTextArea   = document.getElementById("wpTextbox1");
-  var myCodeMirror = CodeMirror.fromTextArea ( myTextArea, { lineNumbers:true, matchBrackets:true} );    // returns an abstract CodeMirror object
-
-  var cmElement = document.querySelector (".CodeMirror");
-  cmElement.myFontSize = 14; cmElement.style.fontSize = cmElement.myFontSize + "pt";  cmElement.CodeMirror.refresh();
-  cmElement.addEventListener ("keydown", (e) => { // console.log ("Key pressed: ", e.key);
-    if (e.metaKey && (e.key=="+" || e.key=="-") ) {e.preventDefault (); e.stopPropagation(); 
-      cmElement.myFontSize += ( e.key=="+" ? 2 : -2 ); cmElement.style.fontSize = cmElement.myFontSize + "pt"; 
-      cmElement.CodeMirror.refresh();            // needed by code mirror after a font change
-    }  });
-
-  var storeResize = true;
-  
-  const wasResized = () => {
-    const VERBOSE = false;
-    var textareaWrapper =  cmElement;     // WAS : document.getElementById ("textarea-wrapper");
-    var iepc            = document.getElementById ("inline-edit-preview-container");
-    if (VERBOSE) console.log (`SIZE CHECK: textarea-wrapper = ${textareaWrapper.clientHeight} and inlineEditpreviewcontainer = ${iepc.clientHeight}`  );
-    iepc.style.height = (textareaWrapper.clientHeight - 2) + "px";
-    shouldReset   = true;  // next time we call the processing function, do a complete reset of all images (due to the changed resolution in the reset
-    if (storeResize) {
-      if (VERBOSE) {console.log ("Parsifal Runtime: resize observer storing textarea dimensions ");}
-      //window.localStorage.setItem ("textareaWidth", textarea.offsetWidth);
-      //window.localStorage.setItem ("textareaHeight", textarea.offsetHeight);
-    } 
-    waitBeforeInvoke (300);  // invoke a redisplay of the preview after some waiting time
-    if (status == 1) { previewContainer.style.height = "" + (newEditContainer.clientHeight - wrapper.clientHeight) + "px" };
-  };
-
-  new ResizeObserver (wasResized).observe (cmElement);          // NEW: cmElement
-  new ResizeObserver (wasResized).observe (document.body);
-}
-*/
 
 
 
@@ -302,6 +242,24 @@ const implementShowVariants = () => {
 
 
 
+
+
+const toggleCodeMirror = () => {
+  let usingCodeMirror = window.localStorage.getItem ("Dante-use-codemirror") === "true"; 
+  usingCodeMirror = !usingCodeMirror; 
+  window.localStorage.setItem ("Dante-use-codemirror", (usingCodeMirror ? "true" : "false"));
+  implementCodeMirror();
+};
+
+const implementCodeMirror = () => {
+  let usingCodeMirror = window.localStorage.getItem ("Dante-use-codemirror") === "true";  
+  console.error ("using code mirror value is: ", usingCodeMirror);
+  if (usingCodeMirror) { document.documentElement.classList.add     ("usingCodeMirror"); }
+  else                 { document.documentElement.classList.remove  ("usingCodeMirror");}
+};
+
+
+
 // patches the edit section links before a parsifal container
 // called for every parsifal container via php injected script tag line
 const patchParsifalEditLinks = (sc) => {
@@ -369,7 +327,8 @@ return ( {renderPDF, jsRender,
          toggleLimitSize,   limitSize,         implementLimitedSize, 
          togglePreview,     setPreviewSetting, implementPreviewSetting,
          toggleVariants,    showVariants,      implementShowVariants ,
-         toggleEditHandles, editHandles,     implementEditHandles,
+         toggleEditHandles, editHandles,       implementEditHandles,
+         toggleCodeMirror,                     implementCodeMirror,
          showAsIframe, showAsWin, 
          patchParsifalEditLinks});    // export functions to the PRT Parsifal Run Time object
 
@@ -381,10 +340,11 @@ return ( {renderPDF, jsRender,
 
 PRT.implementLimitedSize();
 PRT.implementEditHandles();
+PRT.implementCodeMirror ();
 
 
 // DEBUG stuff
 
-console.error ("Parsifal runtime.js has loaded successfully");
+// console.error ("Parsifal runtime.js has loaded successfully");
 //console.log ("post Parsifal loader: ", Object.keys (mw.loader));
 //setTimeout ( () => { console.log ("post post Parsifal loader: ", Object.keys (mw.loader));}, 2000 );

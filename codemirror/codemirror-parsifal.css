@@ -8,6 +8,11 @@
   box-sizing:border-box;
 }
 
+/* ensures proper word wrapping for long Code Mirror editor lines */
+.CodeMirror pre {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 
 /* prevent the chrome standard of showing focused text area elements with blue outline and adjust the focus colors  */      
 .CodeMirror:focus {outline:none; border-color:red !important;}
@@ -26,11 +31,7 @@ div.CodeMirror span.CodeMirror-matchingbracket {color: red; font-size:larger; fo
 .Codemirror-scroll {
   margin-right:0px;
   padding-bottom:0px;
-
-
 }
-
-
 */
 
 
