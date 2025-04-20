@@ -88,11 +88,11 @@ html .vector-body h1, html .vector-body h2, html .vector-body h3, html .vector-b
 }
 
 /* note: html raises specifity in the cascade */
-html .vector-body h1  { font-size: 2.3em;   color: blue;      border-bottom:1px solid  #a2a9b1;  }
-html .vector-body h2  { font-size: 2em;     color: rebeccapurple;       border-bottom:1px solid  #a2a9b1;  }
-html .vector-body h3  { font-size: 1.8em;   color: steelblue;     border-bottom:1px dashed #aaaaaa;  }
-html .vector-body h4  { font-size: 1.5em;   color: black;   border-bottom:1px dashed #dddddd;  }
-html .vector-body h5  { font-size: 1.3em;   color: darkgrey;     border-bottom:1px dotted #dddddd;}
+html .vector-body h1  { font-size: 2.3em;   color: blue;           border-bottom:1px solid  #a2a9b1;  }
+html .vector-body h2  { font-size: 2em;     color: rebeccapurple;  border-bottom:1px solid  #a2a9b1;  }
+html .vector-body h3  { font-size: 1.8em;   color: steelblue;      border-bottom:1px dashed #aaaaaa;  }
+html .vector-body h4  { font-size: 1.5em;   color: black;          border-bottom:1px dashed #dddddd;  }
+html .vector-body h5  { font-size: 1.3em;   color: darkgrey;       border-bottom:1px dotted #dddddd;  }
 html .vector-body h6  { font-size: 1em;}
 
 
