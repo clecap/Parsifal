@@ -8,7 +8,7 @@ $aliases['en'] = array(
 
 $specialPageAliases = [];
 
-
+ 
 $specialPageAliases['en'] = [
   'ParsifalReset' => [ 'ParsifalReset', 'Parsifal Reset' ],
   'ParsifalFormat' => [ 'ParsifalFormat', 'Parsifal Format' ] ,
