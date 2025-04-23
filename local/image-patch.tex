@@ -1,0 +1,36 @@
+%
+% Macros which compensate for the different search path of image files in mediawiki
+% Macros which patch those macros which use image files
+%
+%
+%
+
+
+% \def\dantePrefix{/var/www/html/wiki-dir} % injected in the needed form in TexProcessor.php
+
+\makeatletter
+
+% counter which is used to ensure that for several images in a job always different files are used for the latex system communication
+% and no raceconditions can occur on one file name
+\newcounter{@externaloutputctr} 
+
+\newcommand{\dantetransformpath}[1]{%
+  \stepcounter{@externaloutputctr}%
+  \immediate\write18{python3 \dantePrefix/extensions/Parsifal/py/image-hash.py "#1" > \dantePrefix/parsifal-cache/\jobname-out-\the@externaloutputctr.txt}%
+  \newread\externalread%
+  \openin\externalread=\dantePrefix/parsifal-cache/\jobname-out-\the@externaloutputctr.txt%
+  \read\externalread to \externalresult%
+  \closein\externalread%
+  \def\dantetransformedpath{\externalresult}
+}
+
+% Save the original
+\let\originalincludegraphics\includegraphics
+
+% Redefine includegraphics with optional argument support
+\RenewDocumentCommand{\includegraphics}{O{} m}{%
+  \dantetransformpath{#2}
+  \originalincludegraphics[#1]{\dantePrefix/images/\dantetransformedpath}
+}
+
+\makeatother

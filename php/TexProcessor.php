@@ -67,6 +67,8 @@ private static function generateEndPreambleStuff ($ar, $tag) {
   global $wgServer, $wgScriptPath;
   $stuff = "";
 
+  $stuff = $stuff."\\def\\dantePrefix{"."/var/www/html/".$wgScriptPath."}";
+
   // SANS:  array key   "sans"  turns the default font into a sans serif font
   if ( array_key_exists ( "sans", $ar ) ) { $stuff = $stuff."\\renewcommand{\\familydefault}{\\sfdefault}"; }
 

@@ -2,8 +2,8 @@
 \documentclass[varwidth=15cm,margin=0.07cm]{standalone} 
 
 %%
-%% Standard package imports
-%% 
+%% Standard package imports        
+%%  
 
 \usepackage[T1]{fontenc}             % fontencoding - FIRST load fontencoding 
 \usepackage[utf8]{inputenc}          % and only THEN load UTF-8 see https://tex.stackexchange.com/questions/13067/
@@ -20,7 +20,7 @@
 %% minted is included dynamically
 
 %%
-%% Delayed minted initialization code
+%% Delayed minted initialization code  
 %% * We do not load minted here as part of the normal preamble as it slows down normal latex compilation
 %% * we only load minted on demand using attribute minted
 %% * However we cannot execute this in situations where we do not load the minted package
@@ -134,6 +134,7 @@
 
 \input{../local/chc-jpabox.tex}
 \input{../local/variants.tex}
+\input{../local/image-patch.tex}
 
 
 

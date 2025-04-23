@@ -69,7 +69,7 @@ HEAD;
 HEADER;
     }
 
-
+    if ($this->height == 0) {$this->height=100;}  // emergency fix since this might happen sometimes and then we want some stuff to display so we get at least the link to the log file
     $aspect = $this->width / $this->height;
     $width = $this->width;  $height=$this->height;    ////// TODO: is this required for proper interpolation ????
 
