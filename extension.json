@@ -19,7 +19,7 @@
     "ParserBeforeInternalParse":         "Parsifal::onParserBeforeInternalParse",
     "OutputPageBeforeHTML":              "Parsifal::onOutputPageBeforeHTML",
     "EditPage::attemptSave:after":       "Parsifal::afterAttemptSave",
-    "SkinTemplateNavigation::Universal":          "Parsifal::onSkinTemplateNavigation",
+    "SkinTemplateNavigation::Universal": "Parsifal::onSkinTemplateNavigation",
     "SkinEditSectionLinks":              "Parsifal::onSkinEditSectionLinks",
     "GetPreferences":                    "ParsifalPreferences::onGetPreferences",
     "UserSaveSettings":                  "ParsifalPreferences::onUserSaveSettings",

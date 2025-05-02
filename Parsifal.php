@@ -19,6 +19,10 @@ class Parsifal {                                  // glue class of the extension
 
   public static function onParserFirstCallInit ( Parser $parser ) {  // Register parser callback hooks
     global $initialHashsUsed;  // TODO ????
+
+//   global $wgFileExtensions; throw new Exception (print_r ($wgFileExtensions, true)); // output for debug and development
+
+
     $VERBOSE = true;
     $title = $parser->getTitle();
     if ($VERBOSE) {TeXProcessor::debugLog( "-------- Parsifal::onParserFirstCallInit called for page of title: ".$title.  " \n");}
@@ -153,7 +157,18 @@ public static function onOutputPageBeforeHTML( OutputPage &$out, &$text ) {
   }
 
 
-  public static function onRegistration () { TeXProcessor::ensureCacheDirectory (); }
+  public static function onRegistration () { 
+    global $wgFileExtensions;
+    TeXProcessor::ensureCacheDirectory ();  // required for proper execution
+
+    // allow uploads of relevant file txpes
+    if ( !in_array( 'tex', $wgFileExtensions ) ) {$wgFileExtensions[] = 'tex';}
+    if ( !in_array( 'sty', $wgFileExtensions ) ) {$wgFileExtensions[] = 'sty';}
+    if ( !in_array( 'cls', $wgFileExtensions ) ) {$wgFileExtensions[] = 'cls';}
+    if ( !in_array( 'bib', $wgFileExtensions ) ) {$wgFileExtensions[] = 'bib';}
+    if ( !in_array( 'bst', $wgFileExtensions ) ) {$wgFileExtensions[] = 'bst';}
+
+ }
 
 
 
