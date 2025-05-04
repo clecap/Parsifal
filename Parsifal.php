@@ -22,6 +22,7 @@ class Parsifal {                                  // glue class of the extension
 
 //   global $wgFileExtensions; throw new Exception (print_r ($wgFileExtensions, true)); // output for debug and development
 
+ 
 
     $VERBOSE = true;
     $title = $parser->getTitle();
