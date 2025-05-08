@@ -8,7 +8,7 @@
  * 
  */
   
-       
+          
 use MediaWiki\MediaWikiServices;
 
 require_once ("config/config.php");                // include path configuration
