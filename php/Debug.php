@@ -6,8 +6,12 @@ require_once (  dirname(__FILE__) . "/../config/config.php");    // include path
 
 class ParsifalDebug extends FormSpecialPage {
 
-  public function __construct () {;
-    parent::__construct( 'ParsifalDebug', 'resetParsifal' ); }
+  private $submitResult;       // used to communicate the result of the submission to onSuccess
+
+  public function __construct () {
+    parent::__construct( 'ParsifalDebug', 'resetParsifal' ); 
+    $this->submitResult=-1;    // not yet set  
+  }
   
   public function getGroupName() {return 'dante';}
   
@@ -20,10 +24,15 @@ class ParsifalDebug extends FormSpecialPage {
     // NOTE: need to reset apcu cache and opcache to have this effective as soon as possible in all transitions
     if ($data["radio"] == 0) { copy ("$IP/DanteSettings-production.php",          "$IP/DanteSettings-used.php");   apcu_clear_cache(); opcache_reset(); }
     if ($data["radio"] == 1) { copy ("$IP/DanteSettings-development.php",         "$IP/DanteSettings-used.php");   apcu_clear_cache(); opcache_reset(); }
-    if ($data["radio"] == 2) { copy ("$IP/DanteSettings-development-deprec.php",  "$IP/DanteSettings-used.php");   apcu_clear_cache(); opcache_reset(); }
+  //  if ($data["radio"] == 2) { copy ("$IP/DanteSettings-development-deprec.php",  "$IP/DanteSettings-used.php");   apcu_clear_cache(); opcache_reset(); }
 
-    return "Please wait, reloading...<script>window.location.reload();</script>";
+    $this->submitResult = $data["radio"];
+    return Status::newGood();
+  }
 
+  public function onSuccess() {  // triggered on success
+    $out = $this->getOutput();
+    $out->redirect( wfExpandUrl( Title::newFromText( 'Main Page' )->getFullURL() ) );
   }
 
   public function getFormFields()  {
@@ -40,16 +49,14 @@ class ParsifalDebug extends FormSpecialPage {
           'options' => [
               'Production' => 0,
               'Development' => 1,
-              'Development & Deprecation' => 2
+   //           'Development & Deprecation' => 2  // do not use, currently broken inside of Mediawiki core code itself TODO
           ],
       // The options selected by default (identified by value)
-          'default' => 1,
+      //    'default' => 1,
       ]
   ];
   
     return $formDescriptor;
-
-
 
 
   }
