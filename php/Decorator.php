@@ -90,6 +90,7 @@ HEADER;
   }
 
 
+
   // choses the suitable collapsible wrapper and calls the implementation function
   // $ar              the attribute array of the XML tag
   // $softError       an error indication, which could optionally be used for placing some indicator into the (especially: closed) collapse button to suggest the presence of an error   // TODO: the caller does not set this yet properly 
@@ -131,6 +132,16 @@ HEADER;
 
 
   public function getHTML () : string { return $this->content;}
+
+  // add some more style elements to the IMG tag, depending on the attributes of the latex tag
+  static public function addStyle ( $ar, &$style ) {
+      if ( array_key_exists ("b", $ar) )      { $style .= "border:1px solid gold;";            }     // add a border
+      if ( array_key_exists ("br", $ar) )     { $style .= "border-radius:5px;";                }     // add a border radius
+      if ( array_key_exists ("bs", $ar) )     { $style .= "box-shadow: 10px 10px lightgrey;";  }     // add a box shadow
+      if ( array_key_exists ("style", $ar) )  { $style .= $ar["style"];            }             // add custom style for the img tag
+  }
+
+
 
 
 }  // end class
