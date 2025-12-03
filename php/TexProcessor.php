@@ -63,7 +63,9 @@ public static function precompile ($name) {
 /** generate stuff to be placed into the preamble (before begin{document}) but at the end of the preamble
  *  this is of particular importance for those parts of the preamble which cannot be precompiled or which we want to add dynamically
  */
+
 private static function generateEndPreambleStuff ($ar, $tag) {
+#region
   global $wgServer, $wgScriptPath;
   $stuff = "";
 
@@ -87,8 +89,8 @@ private static function generateEndPreambleStuff ($ar, $tag) {
   //                       if present and has a value: uses that value as style for minted, provided the style is known
 
   if ( array_key_exists ("minted", $ar) ) {                                                       // if we have a minted attribute, include minted stuff
-//    if ( in_array ($ar["minted"], $light) ) { $style=$ar["minted"]; } else { $style = "emacs";}   // check if style is known. If it is not, use emacs as default
-##### $stuff = $stuff . "\\usepackage[outputdir=".CACHE_PATH.",newfloat=true,cache]{minted}\\usemintedstyle{" .$style. "}\\initializeMinted"; 
+  //    if ( in_array ($ar["minted"], $light) ) { $style=$ar["minted"]; } else { $style = "emacs";}   // check if style is known. If it is not, use emacs as default
+  ##### $stuff = $stuff . "\\usepackage[outputdir=".CACHE_PATH.",newfloat=true,cache]{minted}\\usemintedstyle{" .$style. "}\\initializeMinted"; 
     if (isset($ar['minted']) && is_string($ar['minted']) && trim($ar['minted']) !== '') { $mintedStyle = $ar['minted']; }
 
     $mintedInit = "";
@@ -149,6 +151,7 @@ EOD;
 
 
   return $stuff . $urlStuff. $urlStuff2 . $optional . $addPreamble;
+#endregion
 }
 
 
@@ -157,7 +160,8 @@ EOD;
 /* generate stuff to be placed after the preamble (ie. this starts with begin{document})
  * and which prepares the template substitution process
  */
-private static function generateBeforeContentStuff ($ar, $tag) { 
+private static function generateBeforeContentStuff ($ar, $tag) {
+#region
   $stuff    = "";
   $variants = "";
   
@@ -189,6 +193,7 @@ private static function generateBeforeContentStuff ($ar, $tag) {
   }
   $stuff = $variants . $stuff;
   return $stuff;
+  #endregion
 }
 
 
@@ -216,15 +221,13 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
   global $wgServer, $wgScriptPath, $wgOut; 
   global $wgAllowVerbose;
 
-  $USE_APCU_CACHE = true;
-
-  $CACHE_PATH = CACHE_PATH;
-
+  $USE_APCU_CACHE          = true;
+  $CACHE_PATH              = CACHE_PATH;
   $VERBOSE                 = true && $wgAllowVerbose;   // $VERBOSE = false && $wgAllowVerbose;
-  $VERBOSE_APCU_CACHE      = false;    // write APCU_CACHE hit and miss info into the log file
-  $VERBOSE_APCU_CACHE_FULL = false;    // write APCU_CACHE details on every cache entry into the log file - CAVE: immense amount of log information
+  $VERBOSE_APCU_CACHE      = false;                     // write APCU_CACHE hit and miss info into the log file
+  $VERBOSE_APCU_CACHE_FULL = false;                     // write APCU_CACHE details on every cache entry into the log file - CAVE: immense amount of log information
 
-  $pipeMode    = false;  // if true: operate this in pipe mode   if false: operate this in file system mode  // TODO
+  $pipeMode    = false;  // if true: operate this in pipe mode   if false: operate this in file system mode  // TODO TODO !!!!!
   $startTime   = microtime(true);
 
   $texSource   = ( $pipeMode ? "FILE" : null);  
@@ -938,18 +941,21 @@ private static function Tex2DviPdflatex ($hash, $inFinal="") {
 // CAVE 1: We MUST store the value of proc_open somewhere and we must release ressource using proc_close, otherwise things may go wrong
 // CAVE 2: Similar with the pipes, which MUST be prepared, read and properly closed.
 
-public static function executor ( string $cmd, &$output, &$error, $verbose=false, &$duration = null ) {
+public static function executor ( string $cmd, &$output, &$error, $verbose=false, &$duration = null, $timeout = 0) {
   if ($verbose) {$cfn = debug_backtrace()[1]['function']; self::debugLog ( "$cfn calling shell executor\n"); }  // get name of the calling function
 
   $startTime  = microtime(true); 
+
+  if ($timeout > 0) {$cmd = '/bin/bash -c "ulimit -t ' . $timeout . ';' . $cmd . '"';}  // add a timeout
   $proc       = proc_open($cmd,[ 1 => ['pipe','w'], 2 => ['pipe','w'],], $pipes);
+
   $output     = stream_get_contents($pipes[1]); fclose($pipes[1]);
-  $error      = stream_get_contents($pipes[2]); fclose($pipes[2]);
-  $closeParam = proc_close($proc);
+  $error      = stream_get_contents($pipes[2]); fclose($pipes[2]);                  // MUST close pipes before doing a proc_close
+  $closeParam = proc_close($proc);                                                  // wait for the process to finish and obtain exit value
 
   $duration   = microtime (true) - $startTime;
   if ($closeParam != 0) { self::debugLog ("Executor of $cmd closed with a non-zero return from proc_close: $closeParam\n" );}
-  if ($verbose) { self::debugLog ( "$cfn executor call completed.\n    Command: $cmd\n    DURATION: $duration\n    OUTPUT:--------\n$output\n--------\n    ERROR: $error\n" ); }
+  if ($verbose)         { self::debugLog ( "$cfn executor call completed.\n    Command: $cmd\n    DURATION: $duration\n    OUTPUT:--------\n$output\n--------\n    ERROR: $error\n" ); }
   return $closeParam;
 }
 
@@ -958,6 +964,13 @@ public static function executor ( string $cmd, &$output, &$error, $verbose=false
 // TODO migrate the debug comments in most functions which use the executor into the executor with a specifi variable requesting verbosity as parameter to the executor - as well as commentary on the caller 
 
 /** Transform TeX into PDF
+ *
+ * $hash      hash value of the tex file, used to form output file name
+ * $inFinal   additional identifier, used to form output file name
+ * $note      debug identifier, printed into log if requested
+ * $timeout   maximal runtime of the command
+ *            if -1 : do not impose any runtime limit
+ *
  *
  *  ERROR CONDITIONS:
  *    Hard error: Throw
@@ -970,7 +983,7 @@ public static function executor ( string $cmd, &$output, &$error, $verbose=false
  *    127 command not found
  *    string  error text as the error parser felt fit to parse it
  */
-private static function Tex2Pdf ($hash, $inFinal, $note) {
+private static function Tex2Pdf ($hash, $inFinal, $note, $timeout=15) {
   $VERBOSE     = false;  
   $CACHE_PATH  = CACHE_PATH;
   $texFileName = "$CACHE_PATH$hash$inFinal.tex";
@@ -979,6 +992,8 @@ private static function Tex2Pdf ($hash, $inFinal, $note) {
   ASSERT_FILE ($texFileName); 
 
   $cmd = "pdflatex  --shell-escape --interaction=nonstopmode  -file-line-error-style -output-directory=$CACHE_PATH $texFileName"; 
+
+  if ($timeout > 0) {$cmd = '/bin/bash -c "ulimit -t 2;' . $cmd . '"';}  // add a timeout
 
   if ($VERBOSE) { self::debugLog ("Tex2Pdf started ($note) for $hash$inFinal, command is: $cmd \n");}   
   $retval = TeXProcessor::executor ( $cmd, $output, $error, false );
