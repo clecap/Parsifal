@@ -42,14 +42,13 @@ public static function precompile ($name) {
   $cmd1 = "latex  --interaction=nonstopmode  -file-line-error-style  -ini -recorder -output-directory=$LATEX_FORMAT_PATH \"&latex $LATEX_FORMAT_PATH/$name.tex\dump\" "; 
   if ($VERBOSE) { self::debugLog("TeXProcessor::precompile: will now execute the following latex precompile command: \n  ".$cmd1."\n"); }  
   $output1 = null; $retVal1 = null;  
-  $retVal1 = TeXProcessor::executor ($cmd1, $output1, $error1, true, $duration1);
-
+  $retVal1 = DanteUtil::executor ($cmd1, $output1, $error1, null /* [TeXProcessor::class, "debugLog"]*/ , $duration1);
   if ($VERBOSE) { self::debugLog("TeXProcessor::precompile: latex command returned: $retVal1 and output: " . print_r ($output1, true)); }
   
   $cmd2 = "pdflatex  --interaction=nonstopmode  -file-line-error-style  -ini -recorder -output-directory=$PDFLATEX_FORMAT_PATH \"&pdflatex $PDFLATEX_FORMAT_PATH/$name.tex\dump\" ";    
   if ($VERBOSE) { self::debugLog("TeXProcessor::precompile: will now execute pdflatex precompile command ".$cmd2."\n"); }
   $output2 = null; $retVal2 = null; 
-  $retVal1 = TeXProcessor::executor ($cmd2, $output2, $error2, true, $duration2);
+  $retVal1 = DanteUtil::executor ($cmd2, $output2, $error2, null /* [TeXProcessor::class, "debugLog"]*/, $duration2);
   if ($VERBOSE) {self::debugLog("TeXProcessor::precompile: pdflatex command returned: $retVal2 and output: " . print_r ($output2, true)); } 
   if ($retVal1 != 0 || $retVal2 != 0) {
     return "\nCommand1 was: $cmd1\nRetVal1 was $retVal1\nOutput1 was " . print_r($output1, true) . "\n" . print_r ($error1, true) . "\n\n". 
@@ -499,7 +498,7 @@ private static function Pdf2PngHtmlMT ($hash, $scale, $inFinal, $outFinal, &$wid
 
   $cmd = "$PY_PATH/make.py $scale $CACHE_PATH$hash$inFinal $CACHE_PATH$hash$outFinal ";
   if ($VERBOSE)  { self::debugLog ("\n TeXProcessor::Pdf2PngHtmlMT $hash starting: \n"); }
-  $retVal = TeXProcessor::executor ($cmd, $output, $error, false, $duration);
+  $retVal = DanteUtil::executor ($cmd, $output, $error, null /* [TeXProcessor::class, "debugLog"]*/, $duration);
 
   $values = explode(' ', $output);
   list($width, $height) = sscanf($output, "%f %f");
@@ -525,7 +524,7 @@ private static function Pdf2PngHtmlMT_MUT ($hash, $scale, $inFinal, $outFinal, &
   $cmd = MUTOOL. " run  $JS_PATH/my-device.js $scale $CACHE_PATH$hash$inFinal $CACHE_PATH$hash$outFinal ";      // COMMAND:   /usr/bin/mutool  run 
 
  if ($VERBOSE)  { self::debugLog ("\n TeXProcessor:: executor $hash starting: \n"); }
-  $retVal = TeXProcessor::executor ($cmd, $output, $error, false, $duration);
+  $retVal = DanteUtil::executor ($cmd, $output, $error, null, $duration);
  if ($VERBOSE)  { self::debugLog ("\n TeXProcessor:: executor $hash finished: \n"); }
   
   //if ($VERBOSE)  { self::debugLog ("\n TeXProcessor:: mutool execution for scale=$scale hash=$hash had a duration of: ".$duration . "\n"); }
@@ -542,7 +541,7 @@ private static function Pdf2PngHtmlMT_BG ($hash, $scale, $inFinal, $outFinal, &$
   $VERBOSE = true; $JS_PATH = JS_PATH;  $CACHE_PATH = CACHE_PATH;  $PY_PATH = PY_PATH;
   $cmd = MUTOOL. " run  $JS_PATH/my-device.js $scale $CACHE_PATH$hash$inFinal $CACHE_PATH$hash$outFinal ";      // COMMAND:   /usr/bin/mutool  run  
   // $output = null;  $retVal = null;  $error = null;
-  //$retVal = TeXProcessor::executor ($cmd, $output, $error, true, $duration);
+  //$retVal = DanteUtil::executor ($cmd, $output, $error, null, $duration);
   // TODO: error handling
   exec ( $cmd . " > /dev/null 2>&1 & " );
 }
@@ -558,7 +557,7 @@ private static function Pdf2PngHtmlMT_RET ($hash, $scale, $inFinal, $outFinal, &
 
   $cmd = "$PY_PATH/make2.py $scale $CACHE_PATH$hash$inFinal $CACHE_PATH$hash$outFinal "; 
  if ($VERBOSE)  { self::debugLog ("\n TeXProcessor:: executor $hash starting: \n"); }
-  $retVal = TeXProcessor::executor ($cmd, $output, $error, false, $duration);
+  $retVal = DanteUtil::executor ($cmd, $output, $error, null /* [TeXProcessor::class, "debugLog"]*/, $duration);
  if ($VERBOSE)  { self::debugLog ("\n TeXProcessor:: executor $hash finished: \n"); }
   
   if ($VERBOSE)  { self::debugLog ("\n TeXProcessor:: mutool execution for scale=$scale hash=$hash had a duration of: ".$duration . "\n"); }
@@ -677,14 +676,15 @@ private static function Tex2DviPdflatex ($hash, $inFinal="") {
 // TODO: dedpulicate this code with the same code in DanteBackup
 
 // $cmd:       command to be executed
-// $output:    captures stdout
-// $error:     captures stderr
+// $output:    variable which captures stdout
+// $error:     variable which captures stderr
 // $duration:  captures execution time in microseconds
 // $verbose:   if true, write an invocation and completion log to debug
 // $duration:  optional variable which will be set to the duration of the call, if provided by the caller
 // return:     return value of the command
 // CAVE 1: We MUST store the value of proc_open somewhere and we must release ressource using proc_close, otherwise things may go wrong
 // CAVE 2: Similar with the pipes, which MUST be prepared, read and properly closed.
+
 
 public static function executor ( string $cmd, &$output, &$error, $verbose=false, &$duration = null, $timeout = 0) {
   if ($verbose) {$cfn = debug_backtrace()[1]['function']; self::debugLog ( "$cfn calling shell executor\n"); }  // get name of the calling function
@@ -703,6 +703,8 @@ public static function executor ( string $cmd, &$output, &$error, $verbose=false
   if ($verbose)         { self::debugLog ( "$cfn executor call completed.\n    Command: $cmd\n    DURATION: $duration\n    OUTPUT:--------\n$output\n--------\n    ERROR: $error\n" ); }
   return $closeParam;
 }
+
+
 
 
 
@@ -741,7 +743,10 @@ private static function Tex2Pdf ($hash, $inFinal, $note, $timeout=15) {
   if ($timeout > 0) {$cmd = '/bin/bash -c "ulimit -t 2;' . $cmd . '"';}  // add a timeout
 
   if ($VERBOSE) { self::debugLog ("Tex2Pdf started ($note) for $hash$inFinal, command is: $cmd \n");}   
-  $retval = TeXProcessor::executor ( $cmd, $output, $error, false );
+  // $retval = DanteUtil::executor ( $cmd, $output, $error, [TeXProcessor::class, "debugLog"] );
+
+  $retval = DanteUtil::executor ( $cmd, $output, $error, null );
+
   //  127   a fundamental error such as command not found
   //   1   a small tex error, but might be worth mentioning
   //   0   no error at all
@@ -749,7 +754,7 @@ private static function Tex2Pdf ($hash, $inFinal, $note, $timeout=15) {
   if ($retval == 0)        { $ret="";}
   else if ($retval == 127) { $ret="System error. Code 127. Check logs or inform manufacturer.";}
   else if ($retval == 1)   {
-    $logfileContents = file_get_contents ( $CACHE_PATH . $hash . "_pc_pdflatex.log");
+    $logfileContents = @file_get_contents ( $CACHE_PATH . $hash . "_pc_pdflatex.log");
     if ($logfileContents === false) { $ret= "Tex signalled an error but we could not find an error file. Hash is ".$hash; }
     else {
       $index=strpos ($logfileContents, $texFileName.":");  // search for position of the tex file name where it is followed by a :
