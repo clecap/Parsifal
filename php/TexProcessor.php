@@ -18,7 +18,7 @@ private static function purgeByTitle ($titleText) {
 
 /** Generate Latex and Pdflatex precompiled versions of the file $name and place them into the respective format directories. */
 public static function precompile ($name) {
-  $VERBOSE = false;
+  $VERBOSE = true;
   $TEMPLATE_PATH = TEMPLATE_PATH; $LATEX_FORMAT_PATH = LATEX_FORMAT_PATH; $PDFLATEX_FORMAT_PATH = PDFLATEX_FORMAT_PATH;
   
   self::ensureEnvironment();
@@ -335,7 +335,7 @@ public static function DPI ($pixels, $textWidthCm) { return floor (2.54 * $pixel
 public static function SCALE ($pixels, $textWidthCm) {return (2.54 * $pixels) / (1.0 * $textWidthCm * 72);}
 
 
-
+// TODO: DO WE STILL NEED THIS?  MAYBE WE CAn DEPRECATE THIS ASPECT BY preparing the environment elsewhere and plugging it in into proc_open somehow?
 /* ensures that PHP has the right concept of a processing environment, as required for TeX  */
 private static function ensureEnvironment () {
   $VERBOSE  = false;
@@ -385,12 +385,12 @@ private static function ensureEnvironment () {
 }
 
 
+
 /* ensure existence of a disc cache directory */
 public static function ensureCacheDirectory () {
-  $CACHE_PATH = CACHE_PATH;
-  if ( !file_exists ($CACHE_PATH) ) {
-    self::debugLog( "TeXProcessor::ensureCacheDirectory: detected a missing cache directory; trying to construct: $CACHE_PATH \n");     
-    $retVal = mkdir ($CACHE_PATH, 0755);  
+  if ( !file_exists ( constant ("CACHE_PATH") ) ) {
+    self::debugLog( "TeXProcessor::ensureCacheDirectory: detected a missing cache directory; trying to construct: ". constant ("CACHE_PATH")."\n");     
+    $retVal = mkdir ( constant ("CACHE_PATH"), 0755);  
     self::debugLog( "  mkdir returned $retVal \n");
   }
 }
@@ -514,28 +514,6 @@ private static function Pdf2PngHtmlMT ($hash, $scale, $inFinal, $outFinal, &$wid
 
 
 
-
-/** GENERATE PNG from PDF. Transforms $hash$inFinal.pdf into $hash$inFinal.png */
-/*
-private static function Pdf2PngHtmlMT_MUT ($hash, $scale, $inFinal, $outFinal, &$duration = null) {
-  $VERBOSE = true; 
-  $JS_PATH = JS_PATH;  $CACHE_PATH = CACHE_PATH;  $PY_PATH = PY_PATH;
-
-  $cmd = MUTOOL. " run  $JS_PATH/my-device.js $scale $CACHE_PATH$hash$inFinal $CACHE_PATH$hash$outFinal ";      // COMMAND:   /usr/bin/mutool  run 
-
- if ($VERBOSE)  { self::debugLog ("\n TeXProcessor:: executor $hash starting: \n"); }
-  $retVal = DanteUtil::executor ($cmd, $output, $error, null, $duration);
- if ($VERBOSE)  { self::debugLog ("\n TeXProcessor:: executor $hash finished: \n"); }
-  
-  //if ($VERBOSE)  { self::debugLog ("\n TeXProcessor:: mutool execution for scale=$scale hash=$hash had a duration of: ".$duration . "\n"); }
-  //if ($VERBOSE)  { self::debugLog ("\n TeXProcessor:: mutool run output $hash shellexecutor: \n".$output); }
-  // TODO: better error handling
-}
-
-*/
-
-
-
 /** GENERATE PNG from PDF via mutool. Transforms $hash$inFinal.pdf into $hash$inFinal.png */
 private static function Pdf2PngHtmlMT_BG ($hash, $scale, $inFinal, $outFinal, &$duration = null) {
   $VERBOSE = true; $JS_PATH = JS_PATH;  $CACHE_PATH = CACHE_PATH;  $PY_PATH = PY_PATH;
@@ -567,17 +545,6 @@ private static function Pdf2PngHtmlMT_RET ($hash, $scale, $inFinal, $outFinal, &
 
   return $output;
 }
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -797,24 +764,6 @@ static function fwrite_stream($fp, $string) {
 
 
 
-/** GENERATE HTML from PDF with annotations using NODE-tool
- *  assume the existence of file   $hash.pdf    TODO: or different ??????
- *  return html text of annotation layer
- *  if $saveFile = true also save it as file $hash.html
- *
- */
-static function generateHTML ($hash, $htmlScale =1, $horizontalDelta=0, $verticalDelta=0, $saveFile=true ) {
-  $VERBOSE = false;  $CACHE_PATH = CACHE_PATH;  $PDF2HTML = PDF2HTML;
-  $cmd = "$PDF2HTML $CACHE_PATH$hash_pdflatex.pdf  $CACHE_PATH$hash.html  $htmlScale  $horizontalDelta  $verticalDelta  >$CACHE_PATH$nameBase._html.stdout 2>$CACHE_PATH$nameBase._html.stderr";  
-  if ($VERBOSE) {$startTime = microtime(true); self::debugLog ("generateHTML started for $hash, command is: $cmd \n");}     
-  $output = null;  $retVal = null;
-  exec ( $cmd, $output, $retVal ); 
-  if (VERBOSE) {$endTime = microtime (true); $duration = $endTime - $startTime; self::debugLog ("  completed generateHTML. DURATION: $duration \n"); }
-  if ($saveFile) {file_put_contents ( "$CACHE_PATH$hash.html", $output );}
-  return $output;
-}
-
-
 // TODO: why do we still have this function - AND the function Tex2Pdf as well (which we use in lazyRenderer ???)
 // TODO: deprecate this one here ??  
 /** GENERATE PDF via PDFLATEX  from  $hash.tex => $hash.pdf
@@ -857,33 +806,6 @@ static function generatePdfBboxGS ($hashFinal) {
   $result = array ( "left" => $txtArray[1], "top" => $txtArray[2], "left" => $txtArray[3], "left" => $txtArray[4]);
   return $result; 
 }
-
-
-/** get a width, height array for the Png file generated from the latex-dvi-dvipng path 
- *  assuming that the $hash.tex, $hash.dvi and $hash.png already exist or get 0 if file does not exist
- */
-/* TODO DEPRECATE
-static function getSizeFromDviPng ($hash) {
-  $CACHE_PATH = CACHE_PATH;
-  $path = $CACHE_PATH.$hash.".png";  
-  if (file_exists ($path))  {$ims = getimagesize ( $path ); $ims["width"] = $ims[0]; $ims["height"] = $ims[1];} else { $ims = 0;}  
-  return 0;
-}
-*/
-
-/** assume the existence of $hash_pdflatex.pdf, produce a png, use it for cropping and produce an adjusted html
-*/
-static function generateNodePngHtml ($hash, $scale=2.54) {
-  $VERBOSE = true;
-  $CACHE_PATH = CACHE_PATH;
-  $htmlScale = $pngScale = $scale;
-  $cmd = NODE_BINARY . " " . NODE_SCRIPT. " " .  $CACHE_PATH . $hash. "_pdflatex.pdf " . $CACHE_PATH . $hash. "_node.png " . $CACHE_PATH . $hash. ".html " .  $pngScale . " " . $htmlScale  ." >". $CACHE_PATH . $hash."_node.stdout 2>" . $CACHE_PATH . $hash."_node.stderr";  
-  if ($VERBOSE) {$startTime = microtime(true); self::debugLog ("generateNodePngHtml started for $hash, command is: $cmd \n");}  
-  $output = null;  $retVal = null;  
-  $res = exec ( $cmd, $output, $retval );
-  if ($VERBOSE) {$endTime = microtime (true); $duration = $endTime - $startTime;  self::debugLog ("  completed generateNodePngHtml - DURATION: " . $duration . "  retval=".$retval."  res=".$res." \n"); }    
-}
-
 
 
 /////// TODO: there still is a permission problem with this thing here 

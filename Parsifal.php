@@ -192,7 +192,7 @@ public static function onOutputPageBeforeHTML( OutputPage &$out, &$text ) {
 
 // reconstructs format files, call with   "ParsifalTemplate/amsmath"  or similar
   public static function reconstructFormat ( $titleText ) {
-    $VERBOSE = true;
+    $VERBOSE = false;
     $TEMPLATE_PATH = TEMPLATE_PATH; $LATEX_FORMAT_PATH = LATEX_FORMAT_PATH;   $PDFLATEX_FORMAT_PATH = PDFLATEX_FORMAT_PATH;
     if ($VERBOSE) {TeXProcessor::debugLog( "Parsifal::reconstructFormat called, titleText is ". $titleText . "\n");}
 
