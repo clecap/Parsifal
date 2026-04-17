@@ -37,10 +37,13 @@ class ParsifalDebug extends FormSpecialPage {
 
   public function getFormFields()  {
     global $wgDanteOperatingMode;
+    global $wgServer, $wgScriptPath;
     $output = $this->getOutput();
    	$output->addHTML( "<h3>Current operating mode is: $wgDanteOperatingMode.</h3><br>This form allows to select the operative mode<br>" );
    	$output->addHTML( '<b>Running in development or development & deprecation mode contains security risks and is discouraged!</b><br>' );
-    $output->addHTML( '<b>Unless you know exactly what you are doing, please close this browser window immediately</b>' );
+    $output->addHTML( '<b>Unless you know exactly what you are doing, please close this browser window immediately.</b>' );
+
+    $output->addHTML( ' <a href="'.$wgServer.$wgScriptPath.'?title=Special:SpecialPages">Special Pages</a>' );
 
      $formDescriptor = [
       'radio' => [
