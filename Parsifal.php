@@ -20,10 +20,6 @@ class Parsifal {                                  // glue class of the extension
   public static function onParserFirstCallInit ( Parser $parser ) {  // Register parser callback hooks
     global $initialHashsUsed;  // TODO ????
 
-//   global $wgFileExtensions; throw new Exception (print_r ($wgFileExtensions, true)); // output for debug and development
-
- 
-
     $VERBOSE = true;
     $title = $parser->getTitle();
     if ($VERBOSE) {TeXProcessor::debugLog( "-------- Parsifal::onParserFirstCallInit called for page of title: ".$title.  " \n");}
@@ -33,6 +29,7 @@ class Parsifal {                                  // glue class of the extension
         $parser->setHook ( 'block',            function ($in, $ar, $parser, $frame) { return "<div style='width:619px;color:red;'>---------------" . $in . "</div>";  }    );         // implement a <block> construct  // TODO: make width adjustable !!
         return;
     }
+
 
     foreach (TAGS as $key => $tag) { $parser->setHook ($tag, function  ($in, $ar, $parser, $frame) use ($tag) {
       if ( array_key_exists ("double", $ar) ) {
@@ -50,6 +47,7 @@ class Parsifal {                                  // glue class of the extension
       }
       return;  } );
      } // for every tag in TAGS implement a Latex-like parser hook
+
 
     $parser->setHook ( 'preamble', [ "TeXProcessor",  'renderPreamble']  );   
 

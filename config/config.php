@@ -34,20 +34,21 @@ We do so by placing the formats into different format directories and use differ
 
 const BASIC_SIZE = 1000;
 
-const TAGS = array("amsmath", "tex", "beamer");
 
-const END_PREAMBLE_HOOK = "magic-line-for-end-preamble-hook";
+const TAGS = array("amsmath", "tex", "beamer");  // string array of tag names which are handled by the tex generator
+
+
+
+const END_PREAMBLE_HOOK   = "magic-line-for-end-preamble-hook";
 const BEFORE_CONTENT_HOOK = "magic-line-for-before-content-hook";
 
-const MAGIC_LINE         =  "magic-line-identifier-for-inclusion";                     // this line in the latex template is replaced by the content between the tags
+const MAGIC_LINE          =  "magic-line-identifier-for-inclusion";                     // this line in the latex template is replaced by the content between the tags
 
 const AFTER_CONTENT_HOOK = "magic-line-for-after-content-hook";
 
 /** IMPORTANT: MUST HAVE SAME VALUE AS IN CONFIG.JS */
 const ERROR_PARSER_START = "START-MARKER-TYPED-OUT-FOR-ERROR-PARSER";
 const ERROR_PARSER_END   = "END-MARKER-TYPED-OUT-FOR-ERROR-PARSER";
-
-
 
 
 // minipage is used to hold the page width stable   // TODO: cave: as beamer demonstrates: there seems to be no effect of the wiodth - why ???

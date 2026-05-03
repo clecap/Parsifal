@@ -97,7 +97,13 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
   // self::debugLog ("STOREDPREAMBLE: " . $parserPreamble. "\n"); 
 
   $texSource   = null; // generateTex would offer the possibility to fill texSource into variable, which we here do not do
-  $hash        = TeXGenerator::generateTex ($in, $tag, "pc_pdflatex", $ar, $texSource, false, $parserPreamble);      // generate file $hash_pc_pdflatex.tex and return a hash of raw LaTeX source located in Mediawiki
+
+  $mode = TeXCompilationMode::PC_PDFLATEX;  // TODO: we still have a hardcoded mode here, which is bad since it does not allow dynamic modes or mode switching !! // TODO would be good if we could switch modes also as part of the tag line 
+  $modeString = $mode->value;               // mode as string is needed for file name construction
+
+  // TODO: chance for optimization: if file already exists we might reuse it - curently we do not !
+ 
+  $hash        = TeXGenerator::generateTex ($in, $tag, $mode, $ar, $texSource, false, $parserPreamble);      // generate file $hash_pc_pdflatex.tex and return a hash of raw LaTeX source located in Mediawiki
 
   if ($USE_APCU_CACHE) {  //   APCU_CACHE:  the result of lazyRender might be cached in APCU, the key is the $hash of the TeX source
     $cRet = apcu_fetch ( $hash, $cFlag );
@@ -111,12 +117,14 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
       if ($VERBOSE_APCU_CACHE_FULL) { self::debugLog ( "  Cache info is: " .print_r(apcu_cache_info(), true) ."\n\n");                      }    }
   }
 
+// TODO: cave: we have still hardcoded pc_pdflatex mode strings here, which is bad
+
   // set some paths
-  $texPath        = constant("CACHE_PATH").$hash."_pc_pdflatex.tex"; 
-  $annotationPath = constant("CACHE_PATH").$hash."_pc_pdflatex_final_3.html";                         // the local php file path under which we should find the annotations in form of a (partial) html file  // TODO: hardcoded resolution is bad
-  $finalImgPath   = constant("CACHE_PATH").$hash."_pc_pdflatex_final_3.png";   // TODO: cave hardcoded resolution is bad
-  $errorPath      = "$wgScriptPath/extensions/Parsifal/html/texLog.html?"."$wgServer$wgScriptPath".CACHE_URL.$hash."_pc_pdflatex";
-  $mrkFileName    = constant("CACHE_PATH") . $hash. "_pc_pdflatex.mrk";
+  $texPath        = constant("CACHE_PATH").$hash."_{$modeString}.tex"; 
+  $annotationPath = constant("CACHE_PATH").$hash."_{$modeString}_final_3.html";                         // the local php file path under which we should find the annotations in form of a (partial) html file  // TODO: hardcoded resolution is bad
+  $finalImgPath   = constant("CACHE_PATH").$hash."_{$modeString}_final_3.png";   // TODO: cave hardcoded resolution is bad
+  $errorPath      = "$wgScriptPath/extensions/Parsifal/html/texLog.html?"."$wgServer$wgScriptPath".CACHE_URL.$hash."_{$modeString}";
+  $mrkFileName    = constant("CACHE_PATH") . $hash. "_$modeString.mrk";
   $lockFileName   = "/var/lock/parsifal/$hash";                                    // lock the hash, since multiple invocations may induce race conditions (we had that case) 
   // CAVE: must lock in /var/lock, since this is not on the mounted volume (where locks do not work) but natively in the container (where locks work)
 
@@ -140,11 +148,11 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
       //$timePDF = microtime ();
       $softError = "";
       if ($VERBOSE) {self::debugLog ("lazyRender LATEX2PDF phase for $hash... ") ;}
-      if ( !file_exists (constant("CACHE_PATH") . $hash . "_pc_pdflatex.pdf" ) ) {                        //  *** CASE 1: PDF file does not exist: make PDF and pick up error status from function
-        if ($VERBOSE) {self::debugLog ( "lazyRender: CASE 1: did not find file " . constant("CACHE_PATH") . $hash . "_pc_pdflatex.pdf, starting TeX2PDF processing for hash= " . $hash. "\n");}
-        $softError =  self::Tex2Pdf ($hash, "_pc_pdflatex", "lazyrender") ;
+      if ( !file_exists (constant("CACHE_PATH") . $hash . "_{$modeString}.pdf" ) ) {                        //  *** CASE 1: PDF file does not exist: make PDF and pick up error status from function
+        if ($VERBOSE) {self::debugLog ( "lazyRender: CASE 1: did not find file " . constant("CACHE_PATH") . $hash . "_{$modeString}.pdf, starting TeX2PDF processing for hash= " . $hash. "\n");}
+        $softError =  self::Tex2Pdf ($hash, "_{$modeString}", "lazyrender") ;
         if ($VERBOSE) {self::debugLog ( "TeX2PDF processing for hash=$hash returned error status: ($softError) \n" );}
-        if ( !file_exists (constant("CACHE_PATH") . $hash . "_pc_pdflatex.pdf" ) ) {
+        if ( !file_exists (constant("CACHE_PATH") . $hash . "_{$modeString}.pdf" ) ) {
           if ($VERBOSE) {self::debugLog ( "After TeX2PDF processing for hash=$hash but cannot find a PDF file\n" );}
           if ( strlen ($softError) == 0) { $softError = "Transient Latex error - could not produce PDF file\n";} // if condition is required to not overwrite existing latex error info with this
         }
@@ -154,7 +162,7 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
         if ($VERBOSE) {self::debugLog ( "lazyRender: CASE 2: found PDF file for $hash on disc, picking up old error status from marker file \n" ); }
         // still need to pick up error information from the last run, since the error might not have been fixed by the user, so we still must display it
         $softError = file_get_contents ( $mrkFileName );
-        if ( ( $softError = file_get_contents ( $mrkFileName ) ) === false) { throw new ErrorException ("lazyRender: Could not find error marker file " . constant("CACHE_PATH") . $hash. "_pc_pdflatex.mrk"); }
+        if ( ( $softError = file_get_contents ( $mrkFileName ) ) === false) { throw new ErrorException ("lazyRender: Could not find error marker file " . constant("CACHE_PATH") . $hash. "_{$modeString}.mrk"); }
       }
       //$timePDF = microtime () - $timePDF; self::debugLog ("lazyRender: LATEX2PDF phase took $timePDF [sec] \n");
 
@@ -216,7 +224,7 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
       $dataHash  = "data-hash=\"".$hash."\"";                   // attribute helpful for debugging and maybe more
       $onShow    = "onload=\"this.style.display='block';\"";    // function which turns off image and only turns on after completed load; protects user from seeing half-loaded images, which DOES happen for longer texts
 
-      $srcImg    = 'src="'.$wgServer.$wgScriptPath.CACHE_URL.$hash."_pc_pdflatex_final_3.png".'"'; 
+      $srcImg    = 'src="'.$wgServer.$wgScriptPath.CACHE_URL.$hash."_{$modeString}_final_3.png".'"'; 
 
       // TODO: identical contents leads to identical hashes leads to two elements with the same id, which is made
       //       we are / should be migrating this to using $dataHash only !
@@ -409,6 +417,7 @@ static function renderError ($add, $ex, $nameBase) {
 }  
   
 // clean up all files belonging to a specific hash
+// TODO: make this independen of the mode code pc_pdflatex, as there are different modes as well
 static function cleanUp ($hash) {
   $CACHE_PATH = CACHE_PATH;     
   unlink ( "$CACHE_PATH$hash_pc_pdflatex.tex");  
@@ -424,6 +433,7 @@ static function cleanUp ($hash) {
    
   
 // clean up all files in $CACHE_PATH, independently of the hash
+// TODO: make this independen of the mode code pc_pdflatex, as there are different modes as well
 static function cleanUpAll () {
   $CACHE_PATH = CACHE_PATH;
   $VERBOSE = true;
