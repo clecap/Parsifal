@@ -9,7 +9,6 @@
   "AutoloadClasses":   {"Parsifal":            "Parsifal.php",
                         "ParsifalReset":       "php/Reset.php",
                         "ParsifalFormat":      "php/Format.php",
-                        "ParsifalDebug":       "php/Debug.php",
                         "FullPageAction":      "php/FullPage.php",
                         "ParsifalPreferences": "php/Preferences.php"
                        }, 
@@ -40,13 +39,17 @@
   },
   "SpecialPages": {
     "ParsifalReset":  { "class": "ParsifalReset"  },
-    "ParsifalFormat": { "class": "ParsifalFormat" },
-    "ParsifalDebug":  { "class": "ParsifalDebug"  }
+    "ParsifalFormat": { "class": "ParsifalFormat" }
   },
   "ExtensionMessagesFiles": { 
     "ParsifalAlias":  "Parsifal.alias.php",
     "ParsifalReset":  "Parsifal.alias.php",
     "ParsifalFormat": "Parsifal.alias.php"},
   "MessagesDirs":           { "Parsifal": ["i18n"] },
+  "GroupPermissions": {
+    "sysop": {
+      "resetParsifal": true
+    }
+  },
   "manifest_version": 2
 }
