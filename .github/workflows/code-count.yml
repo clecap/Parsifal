@@ -1,0 +1,32 @@
+name: Code Count
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+  workflow_dispatch:
+
+jobs:
+  count:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cloc
+        run: sudo apt-get install -y cloc
+
+      - name: Count lines of code
+        run: |
+          cloc . \
+            --exclude-dir=vendor,node_modules,formats_latex,formats_pdflatex,template \
+            --exclude-ext=fmt,fls,aux,log,pdf,gz,synctex \
+            --md \
+            --out=cloc-report.md
+          cat cloc-report.md
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cloc-report
+          path: cloc-report.md
