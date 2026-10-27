@@ -159,6 +159,7 @@ public static function onOutputPageBeforeHTML( OutputPage &$out, &$text ) {
   public static function onRegistration () { 
     global $wgFileExtensions;
     TeXProcessor::ensureCacheDirectory ();  // required for proper execution
+    TeXProcessor::ensureLogDirectory ();  // required for proper execution
 
     // allow uploads of relevant file txpes
     if ( !in_array( 'tex', $wgFileExtensions ) ) {$wgFileExtensions[] = 'tex';}

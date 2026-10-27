@@ -82,6 +82,10 @@ const CACHE_PATH    =  __DIR__."/../../../parsifal-cache/";                     
 $CACHE_PATH         = CACHE_PATH;                                                    // moving this from a const to a $ since PHP disallows consts in string extrapolations
 const CACHE_URL     = "/parsifal-cache/";                                            // URL relative to scriptPath, must end with a slash /
 
+/* we must have a directory for parsifal lock files; this directory must be part of a local file system and must not be mounted via nsf (where
+  we tested that the lock mechanism does not work reliably). Usually this works in /var/lock
+ */
+const LOCK_DIR_PATH = "/var/lock/parsifal";
 
 /*** Some Log Paths ***/
 const LOG_PATH      =  __DIR__."/../LOGFILE";                                       // path to log file

@@ -404,6 +404,16 @@ public static function ensureCacheDirectory () {
 }
 
 
+/* ensure existence of a lock directory */
+public static function ensureLockDirectory () {
+  if ( !file_exists ( constant ("LOCK_DIR_PATH") ) ) {
+    self::debugLog( "TeXProcessor::ensureLockirectory: detected a missing lock directory; trying to construct: ". constant ("LOCK_DIR_PATH")."\n");     
+    $retVal = mkdir ( constant ("LOCK_DIR_PATH"), 0777);  
+    self::debugLog( "  mkdir returned $retVal \n");
+  }
+}
+
+
 // return exception and error information; use as error handler in all client render methods; provides text, recipient decides on wrapping html etc.
 // $add: additional info,    $ex: exception thrown   $nameBase additional info which hash etc was affected
 static function renderError ($add, $ex, $nameBase) {
