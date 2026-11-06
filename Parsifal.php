@@ -18,43 +18,25 @@ require_once ("php/TexProcessor.php");
 class Parsifal {                                  // glue class of the extension
 
   public static function onParserFirstCallInit ( Parser $parser ) {  // Register parser callback hooks
-    global $initialHashsUsed;  // TODO ????
 
     $VERBOSE = true;
     $title = $parser->getTitle();
     if ($VERBOSE) {TeXProcessor::debugLog( "-------- Parsifal::onParserFirstCallInit called for page of title: ".$title.  " \n");}
     
-    ///// ???? not clear what this is ??????
+    ///// ???? not clear what this is ?????? // TODO: what was the idea here??
     if (property_exists ($parser, "calledFromParsifalFullPage") && $parser->calledFromParsifalFullPage) {
         $parser->setHook ( 'block',            function ($in, $ar, $parser, $frame) { return "<div style='width:619px;color:red;'>---------------" . $in . "</div>";  }    );         // implement a <block> construct  // TODO: make width adjustable !!
         return;
     }
 
+    // for every tag in TAGS implement a Latex-like parser hook; MediaWiki does not pass the tag name to the hook, so the arrow function supplies it
+    foreach ( ["amsmath", "tex", "beamer"] as $tag) { 
+      $parser->setHook ($tag, fn ($in, $ar, $parser, $frame) => Parsifal::texTag ($tag, $in, $ar, $parser, $frame)); 
+    }
 
-    foreach (TAGS as $key => $tag) { $parser->setHook ($tag, function  ($in, $ar, $parser, $frame) use ($tag) {
-      if ( array_key_exists ("double", $ar) ) {
-        $ar["number-of-instance"] = "1";
-        //$res1 = TeXProcessor::lazyRender ($in, $ar, "amsmath", $parser, $frame);
-        $ar["number-of-instance"] = "2";
-        //$res2 = TeXProcessor::lazyRender ($in, $ar, "amsmath", $parser, $frame); 
-        return $res1.$res2;
-      }
-      else { 
-        //TeXProcessor::debugLog( "Parsifal calling lazyRender (1 of 1)\n");
-        $res = TeXProcessor::lazyRender ($in, $ar, $tag, $parser, $frame);
-        //TeXProcessor::debugLog( "Parsifal sees return of lazyRender (1 of 1)\n");
-        return $res;
-      }
-      return;  } );
-     } // for every tag in TAGS implement a Latex-like parser hook
-
-
-    $parser->setHook ( 'preamble', [ "TeXProcessor",  'renderPreamble']  );   
-
-    $parser->setHook ( 'block',            function ($in, $ar, $parser, $frame) { return  Parsifal::block ($in, $ar);}    );         // implement a <block> construct
-
+    $parser->setHook ( 'preamble', [ "TeXProcessor",  'renderPreamble']  );   // TODO: needed for what ?????
+    $parser->setHook ( 'block',    [ "Parsifal",     'block']  );              // implement a <block> construct
   }
-
 
 
 
@@ -62,10 +44,7 @@ class Parsifal {                                  // glue class of the extension
     $VERBOSE = false;
     if ($VERBOSE) {TeXProcessor::debugLog( "-------- Parsifal::onParserBeforeInternalParse ".$text.  " \n");}
 
- //   $text = preg_replace('/<\/amsmath></', '</amsmath><!-- immediate --><', $text);
- //   $text = preg_replace('/<\/amsmath>[ ]*\n</', '</amsmath><!-- newline --><', $text);
- //   $text = preg_replace('/<\/amsmath>[ ]*\n[ ]*\n[ ]*</', '</amsmath><!-- empline --><', $text);
-
+  // TODO: WHAT DOES THIS DO??? WHY ONLY for amsmath??
     $text = preg_replace('/<\/amsmath></',                           '</amsmath><div class="parsifal" data-strut="immediate"></div><', $text);
     $text = preg_replace('/<\/amsmath>[ ]*\n</',                     '</amsmath><div class="parsifal" data-strut="newline"></div><', $text);
     $text = preg_replace('/<\/amsmath>[ ]*\n[ ]*\n[ ]*</',           '</amsmath><div class="parsifal" data-strut="empline"></div><', $text);
@@ -93,21 +72,42 @@ class Parsifal {                                  // glue class of the extension
   }
 
 
+  /**
+   * Tag hook for <block>: wraps the tag content into a div of class parsifalBlock.
+   *
+   * @param string|null $in     content between <block> and </block>, null for a self-closing tag
+   * @param array       $ar     attributes of the tag (currently unused)
+   * @param Parser      $parser the MediaWiki parser (currently unused)
+   * @param PPFrame     $frame  the preprocessor frame (currently unused)
+   * @return string             the HTML to insert into the page
+   */
+  static public function block       ($in, $ar, $parser, $frame)   {return "<div class='parsifalBlock'>" . $in . "</div>";}
 
-  public static function onPageSaveComplete( WikiPage $wikiPage, MediaWiki\User\UserIdentity $user, string $summary, int $flags, MediaWiki\Revision\RevisionRecord $revisionRecord, MediaWiki\Storage\EditResult $editResult ) {
-    global $wgTopDante;
-    TeXProcessor::debugLog( "\n\nParsifal::onPageSaveComplete entered for: title=". $wikiPage->getTitle()." namespace=" . $wikiPage->getTitle()->getNamespace() . " \n");
-      
-//    if ($wikiPage->getTitle()->getNamespace() == NS_MAIN) {} else { TeXProcessor::debugLog( "Parsifal: due to namespace not working\n" ); }
 
+  /**
+   * Tag hook for the LaTeX tags listed in TAGS (amsmath, tex, beamer): renders the tag content via TeXProcessor::lazyRender.
+   *
+   * @param string      $tag    name of the tag, selects the precompiled format
+   * @param string|null $in     content between the opening and the closing tag
+   * @param array       $ar     attributes of the tag
+   * @param Parser      $parser the MediaWiki parser
+   * @param PPFrame     $frame  the preprocessor frame
+   * @return string             the HTML to insert into the page
+   */
+  static public function texTag ($tag, $in, $ar, $parser, $frame) {
+    // TODO: check. something is wrong here: attribute "double" is meant to render the content twice, but both renderings are commented out, so $res1 and $res2 are undefined
+    // TODO: the compile mor ethan once mechanism is completely broken here. It should not call lazyrender twice but should, inside of the Tex2PDF funciton call the tex compiler twice
+    if ( array_key_exists ("double", $ar) ) {
+      $ar["number-of-instance"] = "1";
+      //$res1 = TeXProcessor::lazyRender ($in, $ar, "amsmath", $parser, $frame);
+      $ar["number-of-instance"] = "2";
+      //$res2 = TeXProcessor::lazyRender ($in, $ar, "amsmath", $parser, $frame);
+      return $res1.$res2;
+    }
 
-        return true;
-
-   TeXProcessor::debugLog( "**************************** Parsifal::onPageSaveComplete will leave now \n");
-  }  
-  
-  
-  static public function block       ($in, $ar)   {return "<div class='parsifalBlock'>" . $in . "</div>";}
+    // normal case: render the content with the format named by the tag
+    return TeXProcessor::lazyRender ($in, $ar, $tag, $parser, $frame);
+  }
 
 
 // this provides an early insert into the body to provent FOUC 
@@ -167,18 +167,13 @@ public static function onOutputPageBeforeHTML( OutputPage &$out, &$text ) {
     if ( !in_array( 'cls', $wgFileExtensions ) ) {$wgFileExtensions[] = 'cls';}
     if ( !in_array( 'bib', $wgFileExtensions ) ) {$wgFileExtensions[] = 'bib';}
     if ( !in_array( 'bst', $wgFileExtensions ) ) {$wgFileExtensions[] = 'bst';}
-
  }
 
 
-
-
-
-  // this hook is used to ensure that after editing a Parsifal template in the MediaWiki namespace the file is copied back to the file system
-  // this is necessary since the templates must be picked up from the file system 
+  // this hook is used to ensure that after editing a Parsifal template in the MediaWiki namespace the format files are regenerated from it
+  // this is necessary since TeX picks up the precompiled formats from the file system
   public static function afterAttemptSave (EditPage $editPage, Status $status, $details) {
     $VERBOSE = false;
-    $TEMPLATE_PATH = TEMPLATE_PATH; $LATEX_FORMAT_PATH = LATEX_FORMAT_PATH;   $PDFLATEX_FORMAT_PATH = PDFLATEX_FORMAT_PATH;
     if ($VERBOSE) {TeXProcessor::debugLog( "Parsifal::afterAttemptSave called, title is namespace is ".$editPage->getTitle()->getNamespace()." \n");}
 
     if ( $editPage->getTitle()->getNamespace() == NS_MEDIAWIKI) {            // only if the edit takes place in the MediaWiki namespace
@@ -192,13 +187,13 @@ public static function onOutputPageBeforeHTML( OutputPage &$out, &$text ) {
 // reconstructs format files, call with   "ParsifalTemplate/amsmath"  or similar
   public static function reconstructFormat ( $titleText ) {
     $VERBOSE = false;
-    $TEMPLATE_PATH = TEMPLATE_PATH; $LATEX_FORMAT_PATH = LATEX_FORMAT_PATH;   $PDFLATEX_FORMAT_PATH = PDFLATEX_FORMAT_PATH;
+    $LATEX_FORMAT_PATH = LATEX_FORMAT_PATH;   $PDFLATEX_FORMAT_PATH = PDFLATEX_FORMAT_PATH;
     if ($VERBOSE) {TeXProcessor::debugLog( "Parsifal::reconstructFormat called, titleText is ". $titleText . "\n");}
 
     if ( str_starts_with($titleText, "ParsifalTemplate/") ) {              // and if the page is a subpage of ParsifalTemplate/
       $shortName = str_replace ("ParsifalTemplate/", "", $titleText);
         
-      if ($VERBOSE) {TeXProcessor::debugLog("Parsifal::reconstructFormat: copying MediaWiki:$titleText to $shortName.tex \n");}
+      if ($VERBOSE) {TeXProcessor::debugLog("Parsifal::reconstructFormat: building format $shortName from MediaWiki:$titleText \n");}
          
         $myTitle   = Title::newFromText( $titleText, NS_MEDIAWIKI );
         $myArticle = new Article( $myTitle );
@@ -206,10 +201,6 @@ public static function onOutputPageBeforeHTML( OutputPage &$out, &$text ) {
         if (!$content) {throw new Exception ("Could not get content for page $titleText, maybe the Template does not exist");}
         $template  = $content->getNativeData();  // the data in MediaWiki:ParsifalTemplate/$shortName
 
-        $templateFileName = "$TEMPLATE_PATH$shortName.tex";
-        if ($VERBOSE) {TeXProcessor::debugLog("Parsifal::reconstructFormat: copying MediaWiki:ParsifalTemplate/$titleText to $templateFileName \n");}          
-        file_put_contents( $templateFileName, $template, LOCK_EX); 
-          
         // remove everything beginning with \begin{document}...   and place the rest as source into the format directories
         $index = strpos ($template, "\begin{document}");
         $templatePrecompileSrc = substr ($template, 0, $index);
@@ -324,18 +315,9 @@ public static function onOutputPageBeforeHTML( OutputPage &$out, &$text ) {
       }
     }
     
-//    $propValue = $dbr->selectField( 'page_props', 'pp_value', [ 'pp_propname' => "ParsifalHashsUsed" ], __METHOD__ );
-//    $propValue = unserialize ($propValue);  
-//    $initialHashsUsed = $propValue;
-//    if ($VERBOSE) {TeXProcessor::debugLog ("Parsifal::onParserFirstCallInit sees ParsifalHashsUsed: " . print_r ($initialHashsUsed, true). " \n");}      
-  
   } // end function  
     
 } // end class
     
-  
-
-// TODO: DEPRECATE
-// function formatException ($e) {return "<h3>A processing exception occured in file " . $e->getFile() . " in line " . $e->getLine() . "</h3>".htmlspecialchars ($e->getMessage()); }
 
 ?>

@@ -41,30 +41,6 @@ I recommend to remove all existing Linux TeX installations to prevent a mixture 
 * You might want to check dependencies with `apt rdepends texlive-full` to make sure you have not missed any package.
 
 
-## Install TeXLive
-
-* Chose an installation directory (suggesting: `/opt/texlive`)
-* Download install-tl `wget https://mirror.ctan.org/systems/texlive/tlnet/install-tl.zip` from https://www.tug.org/texlive/ and https://www.tug.org/texlive/acquire-netinstall.html
-* Unpack and `cd` as appropriate.
-* Run the installer `sudo install-tl`
-* Use the default settings of the installer. In my case they were as below (and this is assumed in the settings I use). Note that the installers from some web pages might 
-  propose different defaults and that the year number may change :-)
-```
-TEXDIR (the main TeX directory):
-    /usr/local/texlive/2021
-  TEXMFLOCAL (directory for site-wide local files):
-    /usr/local/texlive/texmf-local
-  TEXMFSYSVAR (directory for variable and automatically generated data):
-    /usr/local/texlive/2021/texmf-var
-  TEXMFSYSCONFIG (directory for local config):
-    /usr/local/texlive/2021/texmf-config
-  TEXMFVAR (personal directory for variable and automatically generated data):
-    ~/.texlive2021/texmf-var
-  TEXMFCONFIG (personal directory for local config):
-    ~/.texlive2021/texmf-config
-  TEXMFHOME (directory for user-specific files):
-    ~/texmf 
-```
 
 
 # Other aspects

@@ -6,7 +6,7 @@
 # Debug info is written to stderr
 # Output will receive width and height of the pdf file
 
-import fitz
+import pymupdf as fitz   # PyMuPDF; the "fitz" module name is deprecated
 import sys
 import math  
 

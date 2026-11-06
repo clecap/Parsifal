@@ -1,9 +1,5 @@
 <?php
 
-/** 
-*/
- 
-
 /**
  * The TeXCompilationMode controls how we compose the tex file to be compiled from the <source>
  * especially regarding the manner how precompiled preambles are added
@@ -20,5 +16,4 @@ enum TeXCompilationMode: string {
   case LATEX         = 'latex';
   case PDFLATEX      = 'pdflatex';
   case RAW           = 'raw';
-
 }

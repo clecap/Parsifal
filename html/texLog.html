@@ -82,16 +82,16 @@ var absolutePath = function(href) {
     return link.href;
 }
 
-console.warn ("js path: " + absolutePath ("../../config/config.js"));
+console.warn ("js path: " + absolutePath ("../../../extensions/Parsifal/config/config.js.php"));
 </script>
 
 <script src="../../../extensions/Parsifal/js/errorParser.js"></script>
-<script src="../../../extensions/Parsifal/config/config.js"></script>
+<script src="../../../extensions/Parsifal/config/config.js.php"></script>
 
 <script>
 const VERBOSE           = true;
 
-/* import parameters from config.js global space into local name space */
+/* import parameters from config.js.php global space into local name space */
 const ERROR_PARSER_START = window.ERROR_PARSER_START;    // at this line the error messages relevant for us start
 const ERROR_PARSER_END   = window.ERROR_PARSER_END;      // at this line the error messages relevant for us end
 

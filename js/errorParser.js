@@ -1,9 +1,5 @@
   
 
-/* import parameters from config.js global space into local name space */
-//const ERROR_PARSER_START = window.ERROR_PARSER_START;    // at this line the error messages relevant for us start
-//const ERROR_PARSER_END   = window.ERROR_PARSER_END;      // at this line the error messages relevant for us end
-
 // input: <txt>    a string of LaTeX error messages using our specific formatting
 //        <name>   the name of the tex file including the full filesystem path on the server as it is used within LaTeX
 // output: an array of error information Objects

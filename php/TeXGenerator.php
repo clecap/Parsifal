@@ -171,8 +171,7 @@ public static function generateBeforeContentStuff ($ar, $tag) {
 public static function generateTex ( string $rawContent, string $tag, TeXCompilationMode $mode, $ar = array(), string &$cookedContent = null, $fc = true, $parserPreamble="" ) : string {
   $VERBOSE               = false;
   $CACHE_PATH            = CACHE_PATH;
-  $TEMPLATE_PATH         = TEMPLATE_PATH;  
-  $LATEX_FORMAT_PATH     = LATEX_FORMAT_PATH;  
+  $LATEX_FORMAT_PATH     = LATEX_FORMAT_PATH;
   $PDFLATEX_FORMAT_PATH  = PDFLATEX_FORMAT_PATH;
 
   if ($VERBOSE) {self::debugLog ("generateTex: attribute array is: ".print_r ($ar, true). "\n");}
@@ -211,22 +210,8 @@ public static function generateTex ( string $rawContent, string $tag, TeXCompila
       $template =   "%&$fmt\n" .$endPreambleStuff.$beforeContentStuff;   
       break;
 
-    case TeXCompilationMode::RAW:
-
-
-
-    case "": 
-      $resultFile       = "$CACHE_PATH{$hash}".$mode->value.".tex";                                      // only in THIS case no underscore - above we NEED underscore
-      $templateFileName = "$TEMPLATE_PATH$tag.tex";  
-      ASSERT_FILE ($templateFileName);
-      $template         = file_get_contents ($templateFileName) . $endPreambleStuff;   // TODO: WHO does the begin document now ???
-      break;
-
-
-
-
-    default: 
-      throw new Exception ("generateTex: received illegal mode $mode");
+    default:   // includes RAW, which is not implemented
+      throw new Exception ("generateTex: received illegal mode {$mode->value}");
   }
 
   if (strpos ($template, MAGIC_LINE) == FALSE)   {

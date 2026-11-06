@@ -3,7 +3,7 @@
 # call this with: $scale    $CACHE_PATH$hash$inFinal   $CACHE$hash$outFinal
 
 
-import fitz
+import pymupdf as fitz   # PyMuPDF; the "fitz" module name is deprecated
 import sys
 import math  
 

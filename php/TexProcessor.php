@@ -4,6 +4,7 @@ require_once (__DIR__."/../config/config.php");
 require_once ("polyfill.php");                       // include some PHP polyfill stuff
 require_once ("Decorator.php");
 require_once ("TeXGenerator.php");
+require_once ("TeXCache.php");                       // APCu cache for the HTML produced by lazyRender
 
 class TeXProcessor {
 
@@ -19,7 +20,8 @@ private static function purgeByTitle ($titleText) {
 /** Generate Latex and Pdflatex precompiled versions of the file $name and place them into the respective format directories. */
 public static function precompile ($name) {
   $VERBOSE = true;
-  $TEMPLATE_PATH = TEMPLATE_PATH; $LATEX_FORMAT_PATH = LATEX_FORMAT_PATH; $PDFLATEX_FORMAT_PATH = PDFLATEX_FORMAT_PATH;
+  $LATEX_FORMAT_PATH = LATEX_FORMAT_PATH; 
+  $PDFLATEX_FORMAT_PATH = PDFLATEX_FORMAT_PATH;
   
   self::ensureEnvironment();
   if ($VERBOSE) {self::debugLog ("TeXProcessor::precompile: Tex2Pdf sees the following environment via getenv(): \n".print_r (getenv(), true) );}
@@ -32,20 +34,20 @@ public static function precompile ($name) {
   self::cleanUpAll();  // clean up ALL existing /tmp files since all pages have to be re-done
   
   // clear the format files to ensure that we do not continue to use an old format when a compilation fails and produces no new format file
-  if (file_exists ("$LATEX_FORMAT_PATH/$name.fmt"))    { unlink ("$LATEX_FORMAT_PATH/$name.fmt");      }
-  if (file_exists ("$LATEX_FORMAT_PATH/$name.fls"))    { unlink ("$LATEX_FORMAT_PATH/$name.fls");      }
-  if (file_exists ("$LATEX_FORMAT_PATH/$name.log"))    { unlink ("$LATEX_FORMAT_PATH/$name.log");      }
-  if (file_exists ("$PDFLATEX_FORMAT_PATH/$name.fmt")) { unlink ("$PDFLATEX_FORMAT_PATH/$name.fmt");   }
-  if (file_exists ("$PDFLATEX_FORMAT_PATH/$name.fls")) { unlink ("$PDFLATEX_FORMAT_PATH/$name.fls");   }
-  if (file_exists ("$PDFLATEX_FORMAT_PATH/$name.log")) { unlink ("$PDFLATEX_FORMAT_PATH/$name.log");   }
+  foreach ([LATEX_FORMAT_PATH, PDFLATEX_FORMAT_PATH] as $dir) {
+    foreach (["fmt", "fls", "log"] as $ext) {
+      $file = "$dir$name.$ext";                                                                                                    // format paths already end with a slash
+      if (!@unlink ($file) && file_exists ($file)) { throw new Exception ("precompile: could not remove old format file $file"); }   // a missing file is fine; a file that is still there is an error
+    }
+  }
   
-  $cmd1 = "latex  --interaction=nonstopmode  -file-line-error-style  -ini -recorder -output-directory=$LATEX_FORMAT_PATH \"&latex $LATEX_FORMAT_PATH/$name.tex\dump\" "; 
+  $cmd1 = LATEX_COMMAND . " -ini -recorder -output-directory=$LATEX_FORMAT_PATH \"&latex $LATEX_FORMAT_PATH/$name.tex\dump\" "; 
   if ($VERBOSE) { self::debugLog("TeXProcessor::precompile: will now execute the following latex precompile command: \n  ".$cmd1."\n"); }  
   $output1 = null; $retVal1 = null;  
   $retVal1 = DanteUtil::executor ($cmd1, $output1, $error1, null /* [TeXProcessor::class, "debugLog"]*/ , $duration1);
   if ($VERBOSE) { self::debugLog("TeXProcessor::precompile: latex command returned: $retVal1 and output: " . print_r ($output1, true)); }
   
-  $cmd2 = "pdflatex  --interaction=nonstopmode  -file-line-error-style  -ini -recorder -output-directory=$PDFLATEX_FORMAT_PATH \"&pdflatex $PDFLATEX_FORMAT_PATH/$name.tex\dump\" ";    
+  $cmd2 = PDFLATEX_COMMAND . " -ini -recorder -output-directory=$PDFLATEX_FORMAT_PATH \"&pdflatex $PDFLATEX_FORMAT_PATH/$name.tex\dump\" ";    
   if ($VERBOSE) { self::debugLog("TeXProcessor::precompile: will now execute pdflatex precompile command ".$cmd2."\n"); }
   $output2 = null; $retVal2 = null; 
   $retVal1 = DanteUtil::executor ($cmd2, $output2, $error2, null /* [TeXProcessor::class, "debugLog"]*/, $duration2);
@@ -83,20 +85,17 @@ public static function renderPreamble ($in, $ar, $parser, $frame) {
 
 
 public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
-  global $wgServer, $wgScriptPath, $wgOut, $wgAllowVerbose;
+  global $wgServer, $wgScriptPath, $wgAllowVerbose;
 
-  $USE_APCU_CACHE          = true;
   $VERBOSE                 = true && $wgAllowVerbose;   // $VERBOSE = false && $wgAllowVerbose;
-  $VERBOSE_APCU_CACHE      = false;                     // write APCU_CACHE hit and miss info into the log file
-  $VERBOSE_APCU_CACHE_FULL = false;                     // write APCU_CACHE details on every cache entry into the log file - CAVE: immense amount of log information
- 
+
   $startTime   = microtime(true);
 
   $parserPreamble = "";
   if (property_exists($parser, 'storePreamble')) { $parserPreamble = $parser->storePreamble;}
   // self::debugLog ("STOREDPREAMBLE: " . $parserPreamble. "\n"); 
 
-  $texSource   = null; // generateTex would offer the possibility to fill texSource into variable, which we here do not do
+  $texSource   = null;                       // generateTex would offer the possibility to fill texSource into variable, which we here do not do
 
   $mode = TeXCompilationMode::PC_PDFLATEX;  // TODO: we still have a hardcoded mode here, which is bad since it does not allow dynamic modes or mode switching !! // TODO would be good if we could switch modes also as part of the tag line 
   $modeString = $mode->value;               // mode as string is needed for file name construction
@@ -105,22 +104,13 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
  
   $hash        = TeXGenerator::generateTex ($in, $tag, $mode, $ar, $texSource, false, $parserPreamble);      // generate file $hash_pc_pdflatex.tex and return a hash of raw LaTeX source located in Mediawiki
 
-  if ($USE_APCU_CACHE) {  //   APCU_CACHE:  the result of lazyRender might be cached in APCU, the key is the $hash of the TeX source
-    $cRet = apcu_fetch ( $hash, $cFlag );
-    if ($cFlag) {
-      $endTime = microtime (true); $totalDuration = $endTime - $startTime;  
-      if ($VERBOSE_APCU_CACHE)      { self::debugLog ("lazyRender: cache HIT for $hash, function call returning after $totalDuration \n");  }
-      if ($VERBOSE_APCU_CACHE_FULL) { self::debugLog ( "  Cache info is: " .print_r(apcu_cache_info(), true) ."\n\n");                      }
-      return $cRet;  } 
-    else { 
-      if ($VERBOSE_APCU_CACHE)      { self::debugLog ("lazyRender: cache MISS for $hash \n");                                               }
-      if ($VERBOSE_APCU_CACHE_FULL) { self::debugLog ( "  Cache info is: " .print_r(apcu_cache_info(), true) ."\n\n");                      }    }
-  }
+  // the result of lazyRender might be cached, the key is the $hash of the TeX source
+  $cRet = TeXCache::fetch ($hash, $cFlag, $startTime);
+  if ($cFlag) { return $cRet; }
 
 // TODO: cave: we have still hardcoded pc_pdflatex mode strings here, which is bad
 
   // set some paths
-  $texPath        = constant("CACHE_PATH").$hash."_{$modeString}.tex"; 
   $annotationPath = constant("CACHE_PATH").$hash."_{$modeString}_final_3.html";                         // the local php file path under which we should find the annotations in form of a (partial) html file  // TODO: hardcoded resolution is bad
   $finalImgPath   = constant("CACHE_PATH").$hash."_{$modeString}_final_3.png";   // TODO: cave hardcoded resolution is bad
   $errorPath      = "$wgScriptPath/extensions/Parsifal/html/texLog.html?"."$wgServer$wgScriptPath".CACHE_URL.$hash."_{$modeString}";
@@ -145,7 +135,7 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
       // throw new Exception ("THIS is a test for exception handling");  // just for testing exception handling
 
       /** LATEX to PDF production step **/
-      //$timePDF = microtime ();
+      $timePDF = microtime ();
       $softError = "";
       if ($VERBOSE) {self::debugLog ("lazyRender LATEX2PDF phase for $hash... ") ;}
       if ( !file_exists (constant("CACHE_PATH") . $hash . "_{$modeString}.pdf" ) ) {                        //  *** CASE 1: PDF file does not exist: make PDF and pick up error status from function
@@ -164,7 +154,8 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
         $softError = file_get_contents ( $mrkFileName );
         if ( ( $softError = file_get_contents ( $mrkFileName ) ) === false) { throw new ErrorException ("lazyRender: Could not find error marker file " . constant("CACHE_PATH") . $hash. "_{$modeString}.mrk"); }
       }
-      //$timePDF = microtime () - $timePDF; self::debugLog ("lazyRender: LATEX2PDF phase took $timePDF [sec] \n");
+      //$timePDF = microtime () - $timePDF; 
+      // self::debugLog ("lazyRender: LATEX2PDF phase took $timePDF [sec] \n");
 
       /** PDF to PNG and HTML production step  **/
       // We need a width and height in the img tag to assist the browser to a more smooth and flicker-less reflow.
@@ -237,7 +228,7 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
       $core->wrap ( $annotations, $softError, $errorPath, $titleInfo, $hash);      // wrap with annotations and error information   
       $core->collapsible ( $ar );                                                  // decorate with collapsibles
 
-      $ret = $core->getHTML ();                                                    // generate HTML which includes the decorations
+      $ret = $core->getHTML ();                                                        // generate HTML which includes the decorations
 
     } // try
 
@@ -246,12 +237,9 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
     catch (\Throwable $e) { $msg=$e->getMessage(); $stk=$e->getTraceAsString(); self::debugLog ("lazyRenderer: Thworable: $e \n$msg\n$stk\n\n");  $ret = "<b>$msg</b><br>$stk<br>";}
     finally               { fclose ($lockStream); }  // self::debugLog ("lazyrender returned a lock for $hash at ".microtime(true) . " \n");
 
-    if ($USE_APCU_CACHE) {
-      $cRet = apcu_store ($hash, $ret, 1000);  // cache the result we just generated so we have a faster access to the html generated and do not have to regenerate this from the files; lives 1000 seconds
-      if ($VERBOSE_APCU_CACHE)      { self::debugLog ("lazyRenderer: Wrote result for $hash into APCU cache, result was $cRet \n"); }
-      if ($VERBOSE_APCU_CACHE_FULL) { self::debugLog ( "  Cache info is: " .print_r(apcu_cache_info(), true) ."\n\n");              }
-    }
-
+    // cache the result we just generated so we need not regenerate it from the files
+    TeXCache::store ($hash, $ret);
+ 
   } // end if (flock) 
   else { self::debugLog ("lazyRenderer: Could not obtain lock for $hash \n"); }  // NOTE: lock files are removed by regular crontab script
 
@@ -343,53 +331,46 @@ public static function DPI ($pixels, $textWidthCm) { return floor (2.54 * $pixel
 public static function SCALE ($pixels, $textWidthCm) {return (2.54 * $pixels) / (1.0 * $textWidthCm * 72);}
 
 
+
 // TODO: DO WE STILL NEED THIS?  MAYBE WE CAn DEPRECATE THIS ASPECT BY preparing the environment elsewhere and plugging it in into proc_open somehow?
 /* ensures that PHP has the right concept of a processing environment, as required for TeX  */
 private static function ensureEnvironment () {
-  $VERBOSE  = false;
+  $VERBOSE  = true;
   $ALREADY  = "already";
 
-  // $start = hrtime (true);  // only for development - time this, results see below
+  $start = hrtime (true);  // only for development - time this, results see below
 
   $parsifalenvironment = getenv('PARSIFALENVIRONMENT');
   if ( strcmp ($parsifalenvironment, $ALREADY) == 0 ) {
     if ($VERBOSE) {self::debugLog ("TeXProcessor::ensureEnvironment: environment has already been setup - exiting \n");}
     return;
   }
+  else {if ($VERBOSE) {self::debugLog ("TeXProcessor::ensureEnvironment: environment MUST still be setup \n");}}
 
-  if ($VERBOSE) {self::debugLog ("TeXProcessor::ensureEnvironment before the environment patching sees the following environment: \n".print_r (getenv(), true) );}  
-  if ($VERBOSE) {self::debugLog ("TeXProcessor::ensureEnvironment patches TEXDIR=".TEXDIR."\n" );}  
-  if ($VERBOSE) {self::debugLog ("TeXProcessor::ensureEnvironment patches PATH=".PATH."\n" );}  
+  // if ($VERBOSE) {self::debugLog ("TeXProcessor::ensureEnvironment is before the environment patching and sees the following environment: \n".print_r (getenv(), true) );}  
+  // if ($VERBOSE) {self::debugLog ("TeXProcessor::ensureEnvironment patches PATH=".PATH."\n" );}  
 
-  // set the environment variables as specified in the TeXLive installer
-  $flag = true;
-  $flag = $flag and putenv ("PARSIFALENVIRONMENT=already");
-  $flag = $flag and putenv ("TEXDIR=".TEXDIR); 
-  $flag = $flag and putenv ("TEXMFLOCAL=".TEXMFLOCAL);
-  $flag = $flag and putenv ("TEXMFSYSVAR=".TEXMFSYSVAR); 
-  $flag = $flag and putenv ("TEXMFSYSCONFIG=".TEXMFSYSCONFIG); 
-  $flag = $flag and putenv ("TEXMFVAR=".TEXMFVAR);
-  $flag = $flag and putenv ("TEXMFCONFIG=".TEXMFCONFIG);    
-  $flag = $flag and putenv ("TEXMFHOME=".TEXMFHOME);      
+  // putenv disabled via disable_functions would raise an Error on the first call, so check for it explicitly
+  if (!function_exists ("putenv")) {throw new Exception ("Parsifal was unable to putenv environment. Must check if putenv is enabled in php.ini or similar!");}
 
-  $flag = $flag and putenv ("max_print_line=1000");      
-  $flag = $flag and putenv ("error_line=254");      
-  $flag = $flag and putenv ("half_error_line=238");      
+  $flag = true;      // set the environment variables required by TeX; && combines every putenv result into $flag
+  // NOTE: max_print_line, error_line, half_error_line are no longer set here but passed per command via TEX_LOG_OPTIONS (config.php)
 
-  // need PATH to tex binaries and to standard OS binaries such as sed and others for font generation scripts
-  $flag = $flag and putenv ("PATH=".PATH);
-  $flag = $flag and putenv ("HOME=".HOME);
-  
-  // want to access local style and packges files from a local directory
-  $flag = $flag and putenv ("TEXINPUTS=".TEXINPUTS);
+  $flag = ($flag && putenv ("PATH=".PATH));      // need PATH to tex binaries and to standard OS binaries such as sed and others for font generation scripts
+  $flag = ($flag && putenv ("HOME=".HOME));
+ 
+  $flag = ($flag && putenv ("TEXINPUTS=".TEXINPUTS));   // want to access local style and packges files from a local directory
 
   if ($flag === false) {throw new Exception ("Parsifal was unable to putenv environment. Must check if putenv is enabled in php.ini or similar!");}
 
-  if ($VERBOSE) {self::debugLog ("TeXProcessor::ensureEnvironment: putting PATH to env returned: ".print_r ( putenv("PATH=".PATH) . "\n", true) );}  
-  if ($VERBOSE) {self::debugLog ("TeXProcessor::ensureEnvironment: getting PATH from env returned: ".print_r ( getenv("PATH") . "\n", true) );}  
-  if ($VERBOSE) {self::debugLog ("TeXProcessor::ensureEnvironment: after environment patching sees the following environment: \n".print_r (getenv(), true) );}  
+ 
+  putenv ("PARSIFALENVIRONMENT=already"); // mark the environment as set up only after all variables were set successfully, so a failed setup is retried on the next call
 
-  //$duration = hrtime(true)-$start; self::debugLog ("TeXProcessor::ensureEnvironment duration: $duration \n");  // negligent. some 20 micro seconds
+  //if ($VERBOSE) {self::debugLog ("TeXProcessor::ensureEnvironment: putting PATH to env returned: ".print_r ( putenv("PATH=".PATH) . "\n", true) );}  
+  //if ($VERBOSE) {self::debugLog ("TeXProcessor::ensureEnvironment: getting PATH from env returned: ".print_r ( getenv("PATH") . "\n", true) );}  
+  //if ($VERBOSE) {self::debugLog ("TeXProcessor::ensureEnvironment: after environment patching sees the following environment: \n".print_r (getenv(), true) );}  
+
+  $duration = hrtime(true)-$start; self::debugLog ("TeXProcessor::ensureEnvironment duration: $duration \n");  // negligent. some 20 micro seconds
 }
 
 
@@ -495,21 +476,6 @@ private static function modifyTex ( string $rawContent, string $tag, string $mod
 
 
 
-
-/** GENERATE PNG from PDF via mutool. Transforms $hash.pdf into $hash$final.png
- */
-private static function Pdf2PngMT ($hash, $dpi, $inFinal, $outFinal) {
-  $VERBOSE = false;  
-  $CACHE_PATH = CACHE_PATH;
-  $cmd = MUTOOL. " convert -O resolution=$dpi -o $CACHE_PATH$hash$outFinal.png $CACHE_PATH$hash$inFinal.pdf  1-1";     // 1-1 is the page range    
-  if ($VERBOSE) {$startTime = microtime(true);  self::debugLog ("Pdf2PngMT started for $hash, command is: " . $cmd . "\n");}
-  // $output = null;  $retVal = null;  //  exec ( $cmd, $output, $retVal );  
-  exec ( $cmd );  
-  if ($VERBOSE) {$endTime = microtime (true); $duration = $endTime - $startTime; self::debugLog ("  completed Pdf2PngMT. DURATION: " . $duration . "\n"); }  
-  // if ($VERBOSE) {self::debugLog ("  return value $retVal  output ". print_r ($output, true));} 
-}
-
-
 // CURRENTLY USED 
 /** GENERATE PNG from PDF. Transforms $hash$inFinal.pdf into $hash$inFinal.png */
 private static function Pdf2PngHtmlMT ($hash, $scale, $inFinal, $outFinal, &$width, &$height, &$duration = null) {
@@ -534,24 +500,12 @@ private static function Pdf2PngHtmlMT ($hash, $scale, $inFinal, $outFinal, &$wid
 
 
 
-/** GENERATE PNG from PDF via mutool. Transforms $hash$inFinal.pdf into $hash$inFinal.png */
-private static function Pdf2PngHtmlMT_BG ($hash, $scale, $inFinal, $outFinal, &$duration = null) {
-  $VERBOSE = true; $JS_PATH = JS_PATH;  $CACHE_PATH = CACHE_PATH;  $PY_PATH = PY_PATH;
-  $cmd = MUTOOL. " run  $JS_PATH/my-device.js $scale $CACHE_PATH$hash$inFinal $CACHE_PATH$hash$outFinal ";      // COMMAND:   /usr/bin/mutool  run  
-  // $output = null;  $retVal = null;  $error = null;
-  //$retVal = DanteUtil::executor ($cmd, $output, $error, null, $duration);
-  // TODO: error handling
-  exec ( $cmd . " > /dev/null 2>&1 & " );
-}
-
 
 // CURRENTLY NOT UISED
 // this is the variant returning the html / svg / annotation code directly
 private static function Pdf2PngHtmlMT_RET ($hash, $scale, $inFinal, $outFinal, &$duration = null) {
   $VERBOSE = true; 
   $JS_PATH = JS_PATH;  $CACHE_PATH = CACHE_PATH;  $PY_PATH = PY_PATH;
-
-//  $cmd = MUTOOL. " run  $JS_PATH/my-device.js $scale $CACHE_PATH$hash$inFinal $CACHE_PATH$hash$outFinal ";      // COMMAND:   /usr/bin/mutool  run 
 
   $cmd = "$PY_PATH/make2.py $scale $CACHE_PATH$hash$inFinal $CACHE_PATH$hash$outFinal "; 
  if ($VERBOSE)  { self::debugLog ("\n TeXProcessor:: executor $hash starting: \n"); }
@@ -565,95 +519,6 @@ private static function Pdf2PngHtmlMT_RET ($hash, $scale, $inFinal, $outFinal, &
 
   return $output;
 }
-
-
-
-
-private static function manuBoth ( $hash1, $inFinal1, $note1, $hash2, $scale2, $inFinal2, $outFinal2) {
-  $VERBOSE = true;  $CACHE_PATH = CACHE_PATH;  $JS_PATH = JS_PATH;  
-  ASSERT_FILE ("$CACHE_PATH$hash1$inFinal1.tex"); 
-  // if ($VERBOSE) {self::debugLog ("Tex2Pdf sees the following environment: \n".print_r (getenv(), true) );}  // uncomment to check the active environment
-  $cmd1 = "pdflatex  --interaction=nonstopmode  -file-line-error-style -output-directory=$CACHE_PATH $CACHE_PATH$hash1$inFinal1.tex  >/dev/null 2>&1  "; 
-  $cmd2 = MUTOOL. " run  $JS_PATH/my-device.js $scale2 $CACHE_PATH$hash2$inFinal2 $CACHE_PATH$hash2$outFinal2 >/dev/null 2>&1 ";  
-  $cmd = "{ " . $cmd1 . " ; " . $cmd2 . " ;} >/dev/null 2>&1 & " ;
- 
-  $output = null;  $retval = null;   
-  $res = exec ( $cmd, $output, $retval );    
- // if ($VERBOSE) { $endTime = microtime (true); $duration = $endTime - $startTime; self::debugLog ("  completed manuBoth ($note1). DURATION: $duration RETURN: $retval \n"); }   
-
-//  file_put_contents ( $CACHE_PATH . $hash. "$inFinal.mrk", ( $retval != 0 ? "ERROR" : "" ) ); // write ERROR into .mrk file if there is an error to know about this later when we only access file system // TODO !!!!!!!!!!!!!!!!!!!!
-  if (! file_exists ( "$CACHE_PATH$hash2$inFinal2.pdf") )  {
-    throw new Exception ("Tex2Pdf: Did not generate $CACHE_PATH$hash2$inFinal2.pdf for this content. Probably TeX error or transient problem while editing.");} 
-//  return ($retval == 0 ? 0 : $output);  
-}
-
-
-
-/** GENERATE SVG from PDF via mutool. Transforms $hash.pdf into $hash$final.png
- */
-private static function Pdf2SvgMT ($hash, $dpi, $final="_mt", $inFinal="_pdflatex") {
-  $VERBOSE = true;
-  $CACHE_PATH = CACHE_PATH;
-  $cmd = MUTOOL. " convert -O resolution=$dpi -o $CACHE_PATH$hash$final.svg $CACHE_PATH$hash$inFinal.pdf  1-1";     // 1-1 is the page range    
-  if ($VERBOSE) {$startTime = microtime(true);  self::debugLog ("Pdf2SvgMT started for $hash, command is: " . $cmd . "\n");}
-  // $output = null;  $retVal = null;  //  exec ( $cmd, $output, $retVal );  
-  exec ( $cmd );  
-  if ($VERBOSE) {$endTime = microtime (true); $duration = $endTime - $startTime; self::debugLog ("  completed Pdf2SvgMT. DURATION: " . $duration . "\n"); }  
-  // if ($VERBOSE) {self::debugLog ("  return value $retVal  output ". print_r ($output, true));} 
-}
-
-
-
-/** GENERATE PNG from PDF via GHOSTSCRIPT
- *   devices:   pngmono   pngray  png256    png16
- */
- private static function Pdf2PngGS ($hash, $dpi, $final="_gs", $device="pngmono", $inFinal="_pdflatex") {
-   $VERBOSE = true;
-   $CACHE_PATH = CACHE_PATH;
-   $cmd = GHOSTSCRIPT . "  -dSAFER -dBATCH -dNOPAUSE -sDEVICE=$device -r$dpi -sPageList=1 -o $CACHE_PATH$hash$final.png $CACHE_PATH$hash$inFinal.pdf  ";    
-   if ($VERBOSE) {$startTime = microtime(true);  self::debugLog ("Pdf2PngGS started for $hash, command is: " . $cmd . "\n");}
-   // $output = null;  $retVal = null;  // do not need error messaging here
-   exec ( $cmd );  
-   if ($VERBOSE) {$endTime = microtime (true); $duration = $endTime - $startTime; self::debugLog ("  completed Pdf2PngGS. DURATION: " . $duration . "\n"); }   
- }
-
-
-
-
-/** Generate dvi from tex using latex processor (works for ANY tex file, independently of precompilation settings) */
-
-private static function Tex2DviLatex ($hash, $inFinal="") {
-  $VERBOSE = true;
-  $CACHE_PATH = CACHE_PATH;
-  ASSERT_FILE ("$CACHE_PATH$hash$inFinal.tex");
-  $cmd = LATEX_COMMAND . " -output-dir=$CACHE_PATH $CACHE_PATH$hash$inFinal.tex";              // MUST do a cd, since latex may generate some files in the local directory // TODO????????????????????????????? use build directoiry ???????
-  if ($VERBOSE) {$startTime = microtime(true); self::debugLog ("Tex2DviLatex ($inFinal) for $hash$inFinal.tex, command is: $cmd \n");} 
-  $output = null;  $retVal = null;
-  exec ( $cmd, $output, $retVal ); 
-  if ($VERBOSE) {$endTime = microtime (true); $duration = $endTime - $startTime; self::debugLog ("  completed Tex2DviLatex $inFinal for $hash$inFinal.tex. DURATION: $duration \n"); }
-
-  // we could have partially usable LaTeX output and still have errors. This can be seen in the exit code and is signaled in the .mrk file across different endpoint invocations
-  file_put_contents ( $CACHE_PATH . $hash. "$inFinal.mrk", ( $retVal != 0 ? "ERROR" : "" ) );
-  if (! file_exists ( "$CACHE_PATH$hash$inFinal.dvi") )  {throw new Exception ("Tex2DviLatex: $inFinal Could not generate ANY DVI for this content. Probably TeX error or transient problem while editing.");} 
-}
-
-// CAVE: BUGS
-/** Generate dvi from tex using pdflatex processor (works for ANY tex file, independently of precompilation settings) */
-/** CAVE: It does not work to use pdflatex in dvi mode with a format which has been precompiled for pdf mode */
-private static function Tex2DviPdflatex ($hash, $inFinal="") {
-  $VERBOSE = true;
-  $CACHE_PATH = CACHE_PATH;
-  $cmd = PDFLATEX_COMMAND . " -output-format=dvi -output-dir=$CACHE_PATH $CACHE_PATH$hash$inFinal.tex";              // MUST do a cd, since latex may generate some files in the local directory // TODO????????????????????????????? use build directoiry ???????
-  if ($VERBOSE) {$startTime = microtime(true); self::debugLog ("Tex2DviPdflatex command is: $cmd \n");} 
-  $output = null;  $retVal = null;
-  exec ( $cmd, $output, $retVal ); 
-  if ($VERBOSE) {$endTime = microtime (true); $duration = $endTime - $startTime; self::debugLog ("  completed Tex2DviPdflatex for $hash$inFinal.tex. DURATION: $duration \n"); }
-
-  // we could have partially usable LaTeX output and still have errors. This can be seen in the exit code and is signaled in the .mrk file across different endpoint invocations
-  file_put_contents ( $CACHE_PATH . $hash. "$inFinal.mrk", ( $retVal != 0 ? "ERROR" : "" ) );
-  if (! file_exists ( "$CACHE_PATH$hash$inFinal.dvi") )  {throw new Exception ("Tex2DviPdflatex: Did not generate $CACHE_PATH$hash$inFinal.dvi for this content. Probably TeX error or transient problem while editing.");} 
-}
-
 
 
 
@@ -718,14 +583,14 @@ public static function executor ( string $cmd, &$output, &$error, $verbose=false
  *    string  error text as the error parser felt fit to parse it
  */
 private static function Tex2Pdf ($hash, $inFinal, $note, $timeout=15) {
-  $VERBOSE     = false;  
+  $VERBOSE     = true;  
   $CACHE_PATH  = CACHE_PATH;
   $texFileName = "$CACHE_PATH$hash$inFinal.tex";
   $mrkFileName = "$CACHE_PATH$hash$inFinal.mrk";
 
   ASSERT_FILE ($texFileName); 
 
-  $cmd = "pdflatex  --shell-escape --interaction=nonstopmode  -file-line-error-style -output-directory=$CACHE_PATH $texFileName"; 
+  $cmd = PDFLATEX_COMMAND . " --shell-escape -output-directory=$CACHE_PATH $texFileName"; 
 
   if ($timeout > 0) {$cmd = '/bin/bash -c "ulimit -t 2;' . $cmd . '"';}  // add a timeout
 
@@ -741,23 +606,33 @@ private static function Tex2Pdf ($hash, $inFinal, $note, $timeout=15) {
   if ($retval == 0)        { $ret="";}
   else if ($retval == 127) { $ret="System error. Code 127. Check logs or inform manufacturer.";}
   else if ($retval == 1)   {
+    self::debugLog ("Tex2Pdf: executor returned small error, retval=" .$retval."\n");
     $logfileContents = @file_get_contents ( $CACHE_PATH . $hash . "_pc_pdflatex.log");
-    if ($logfileContents === false) { $ret= "Tex signalled an error but we could not find an error file. Hash is ".$hash; }
-    else {
+    if ($logfileContents === false) {   // have no log file
+      self::debugLog ("Tex2Pdf: we could not find an error file for hash ".$hash."\n");
+      $ret= "Tex2Pdf: we could not find an error file. Hash is ".$hash; }
+    else { // have a log file
       $index=strpos ($logfileContents, $texFileName.":");  // search for position of the tex file name where it is followed by a :
-      $substring = substr($logfileContents, $index);       // go to this position
-      $index=strpos ($substring,":");                      // advance to the position of the :
-      $substring = substr ($substring, $index+1);          // jump over the :  this brings us to the line number
-      $newlinePos = strpos($substring, "\n");              // search position of next newline
-      if ($newlinePos === false) {$ret = $substring;}      // If there is no newline, return the entire string
-      else {
-        $secondNewlinePos = strpos($substring, "\n", $newlinePos + 1);     // Find the position of the second newline, starting the search just after the first newline
-        if ($secondNewlinePos === false) { $ret = $substring; }   // If there is no second newline, return the substring from the start to the end of the string
-        else {  
-          $ret = substr($substring, 0, $secondNewlinePos);     // Return the substring from the start to the second newline
+      if ($index === false) { // did not find needle in error parse attempt
+        self::debugLog ("Tex2Pdf: error parser did not find needle $texFileName:\n");
+        $ret="Unable to find specific error message in log file";
+      }
+      else { // found a needle in error parse attempt
+        $substring = substr($logfileContents, $index);         // go to this position
+        $index=strpos ($substring,":");                      // advance to the position of the :
+        $substring = substr ($substring, $index+1);            // jump over the :  this brings us to the line number
+        $newlinePos = strpos($substring, "\n");              // search position of next newline
+        if ($newlinePos === false) {$ret = $substring;}                         // If there is no newline, return the entire string
+        else {
+          $secondNewlinePos = strpos($substring, "\n", $newlinePos + 1);     // Find the position of the second newline, starting the search just after the first newline
+          if ($secondNewlinePos === false) { $ret = $substring; }   // If there is no second newline, return the substring from the start to the end of the string
+          else {  
+            $ret = substr($substring, 0, $secondNewlinePos);     // Return the substring from the start to the second newline
+          }
         }
-      }   
-    } 
+      }
+
+    } // end of else: have a logfile
   }
   else                     { $ret=" Unknown errorcode received from Tex driver. Value is ".$retval; }
 
@@ -779,84 +654,6 @@ static function fwrite_stream($fp, $string) {
     return $written;
 }
 
-
-
-
-
-
-// TODO: why do we still have this function - AND the function Tex2Pdf as well (which we use in lazyRenderer ???)
-// TODO: deprecate this one here ??  
-/** GENERATE PDF via PDFLATEX  from  $hash.tex => $hash.pdf
- *  Assume there is a $has.tex file, generate a $hash_pdflatex.pdf file using pdflatex
- *  Used jobname is $hash_pdflatex in order to have all intermediary files (such as .aux, .log) seperate from other tex engines which might be in use as well
- *  returns exit value
- */
-static function generatePDF ($hash) {
-  $VERBOSE = true;
-  $CACHE_PATH = CACHE_PATH;
-  ASSERT_FILE ("$CACHE_PATH$hash.tex");
-  $cmd = PDFLATEX_COMMAND ." -output-directory=$CACHE_PATH $CACHE_PATH$hash.tex ";  
-  if ($VERBOSE) { $startTime = microtime(true); self::debugLog ("generatePDF started for $hash, command is: $cmd \n");}   
-  $output = null;  $retVal = null;   
-  $res = exec ( $cmd, $output, $retval );    
-  if ($VERBOSE) {  $endTime = microtime (true); $duration = $endTime - $startTime; self::debugLog ("  completed generatePDF. DURATION: $duration \n"); }         
-  return $retVal;
-}
-
-/** generate bounding box information from pdfFileName
- *  construct the filename from the $hash and an additional qualifier for the pdf as in  $hash$inFinal.pdf
- *    $hashFinal is $hash, possibly with a precompilation tag, uniquely defining the $hashFinal.pdf file we need here
- */
-static function generatePdfBboxGS ($hashFinal) {
-  $VERBOSE = true;
-  $GHOSTSCRIPT = GHOSTSCRIPT;
-  $CACHE_PATH = CACHE_PATH;
-  ASSERT_FILE ("$CACHE_PATH$hashFinal.pdf");
-  $cmd = "$GHOSTSCRIPT -dBATCH -dNOPAUSE -dQUIET -sPageList=1 $CACHE_PATH$hashFinal.pdf 2>&1";  // need the stderr to stdout redirect since ghostscript outputs this on stderr
-  if ($VERBOSE) {$startTime = microtime(true); self::debugLog ("generatePdfBboxGS started for $hashFinal, command is: $cmd \n");}  
-  $output = null; $retVal = null;
-  $res = exec ($cmd, $output, $retval);  // output should now be an array, one item per line and we should get two elements, the normal and the hi res bounding box  
-                                         // if we get more there is either an error or we have a multi-page pdf  the first is the normal bounding box and it has string format as in:  %%BoundingBox: 0 0 426 823
-  if ($VERBOSE) { self::debugLog ("  output obtained from ghostscript is:" . print_r($output, true) . "\n");}
-  $txtArray = explode (" ",$output[0]);
-  
-  if ( !str_starts_with ($txtArray[0], "%%BoundingBox") ) { throw new ErrorException ("generatePdfBboxGS: could not find ghostscript bounding box answer for $hashFinal. Output obtained was ".print_r($output, true)); }
-  
-  if ($VERBOSE) {$endTime = microtime (true); $duration = $endTime - $startTime; $outputTxt =  "1=".$txtArray[1]." 2=".$txtArray[2]."".$txtArray[3]."".$txtArray[4]; self::debugLog ("  completed generatePdfBboxGS for $hashFinal. DURATION: $duration  returned $retval RESULT: $outputTxt \n");}  
-  $result = array ( "left" => $txtArray[1], "top" => $txtArray[2], "left" => $txtArray[3], "left" => $txtArray[4]);
-  return $result; 
-}
-
-
-/////// TODO: there still is a permission problem with this thing here 
-
-// TODO: in the background we want to do additional resolutions and themes 
-/*
-static function completeInBackground ($hash) {
-  $CACHE_PATH = CACHE_PATH;
-  //////// TODO: ADJUST and improve these settings !
-  $pngScale = "2.54";    // if   "0"  we produce no png
-  $htmlScale = "2.54";   // if  "0"  produce no html
-  
-  // NOTE: The reason that we do this so complicated is that we need a particular sequence of jobs to run in the background of php. 
-  // We never got that running in *all* details, especially setting particular paths and shell variables for pdflatex and getting proper redirects and debug info
-
-  $sheBang = "#!/bin/sh";
-  $cd = "cd ".CACHE_PATH;
-  $cmdPdflatex =  PDFLATEX_COMMAND . " -jobname " . $hash . "_pdflatex " .  $CACHE_PATH . $hash . ".tex " . ">".$CACHE_PATH.$hash."_pout  2>".$CACHE_PATH. $hash. "_perr";
-  $cmdNode = NODE_BINARY . " " . NODE_SCRIPT. " " .  $CACHE_PATH . $hash . "_pdflatex.pdf " . $CACHE_PATH . $hash . "_node.png " . $CACHE_PATH . $hash . ".html " .  $pngScale . " " . $htmlScale  ." >". $CACHE_PATH . $hash."_nout 2>" . $CACHE_PATH . $hash."_nerr";  
-
-  $shellFileName = $CACHE_PATH . $hash . ".sh";
-  touch ($shellFileName);
-  chmod ( $shellFileName, 0774);  
-  if($shellFile = fopen( $shellFileName, 'w')) {
-    fwrite($shellFile, $cd."\n".$sheBang."\n".$cmdPdflatex."\n".$cmdNode);  
-    fclose($shellFile);
-  } 
-  exec ($shellFileName . " >/dev/null 2>/dev/null & ");    // kickoff and run in background.  ///// TODO: we do not want to keep output and stderr here ????
-                                                           // MUST have a redirect of the stdout and stderr or we will block/https://stackoverflow.com/questions/14555971/php-exec-background-process-issues
-}
-*/
 
 
 } // END of class

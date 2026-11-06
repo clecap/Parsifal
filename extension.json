@@ -21,8 +21,7 @@
     "SkinTemplateNavigation::Universal": "Parsifal::onSkinTemplateNavigation",
     "SkinEditSectionLinks":              "Parsifal::onSkinEditSectionLinks",
     "GetPreferences":                    "ParsifalPreferences::onGetPreferences",
-    "UserSaveSettings":                  "ParsifalPreferences::onUserSaveSettings",
-    "PageSaveComplete":                  "Parsifal:onPageSaveComplete"
+    "UserSaveSettings":                  "ParsifalPreferences::onUserSaveSettings"
   },
   "callback":                          "Parsifal::onRegistration",
   "ResourceModules": {

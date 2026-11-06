@@ -6,8 +6,21 @@
  *   file in mediawiki as well as in our own endpoint files.
 */
 
-require_once ("config-paths.php");  // load the path settings required for this operating system scenario (MUST ADJUST this file!)
-require_once ("config-env.php");    // load the environment settings required by TeXLive (MIGHT NEED TO ADJUST this file!)
+
+
+const MUTOOL            = "/usr/bin/mutool";                                         // path to the mutool executable:      determine by which mutool
+
+
+const LATEX_BINARY      = "latex";
+const PDFLATEX_BINARY   = "pdflatex";                                                // path to pdflatex executable;
+
+/** PATH must include normal Linux path (such as sed, uname, mkdir, rm and possibly more) and path to pdflatex */
+const PATH              = "/usr/local/bin:/usr/bin:/bin:/bin";
+
+const HOME              = "/var/www";
+
+const TEXINPUTS         = __DIR__."/../local:";                           // directory to search for TeX input files  : is imperative to add the path to the standard classes  
+
 
 /** THE REMAINING PARTS of this file SHOULD NOT BE MODIFIED unless developing the system further */
 
@@ -27,48 +40,27 @@ We do so by placing the formats into different format directories and use differ
 // for detecting a line which starts or ends a Latex text portion */
 /* ensure that the tags are prefix free (so no tex and textest at the same time */
 
-// TODO: deprecated. delete after a while
-// const TAG_REGEX_START_STRING = "<amsmath|<large:amsmath|<pre-amsmath|<tex|<pdftex"; 
-// const TAG_REGEX_END_STRING   = "<\/amsmath>|<\/large:amsmath>|<\/pre-amsmath>|<\/tex>|<\/tex>";
-
-
 const BASIC_SIZE = 1000;
-
-
-const TAGS = array("amsmath", "tex", "beamer");  // string array of tag names which are handled by the tex generator
 
 
 
 const END_PREAMBLE_HOOK   = "magic-line-for-end-preamble-hook";
 const BEFORE_CONTENT_HOOK = "magic-line-for-before-content-hook";
-
 const MAGIC_LINE          =  "magic-line-identifier-for-inclusion";                     // this line in the latex template is replaced by the content between the tags
-
 const AFTER_CONTENT_HOOK = "magic-line-for-after-content-hook";
 
-/** IMPORTANT: MUST HAVE SAME VALUE AS IN CONFIG.JS */
+/** Markers for the error parser; exported to JavaScript as window.ERROR_PARSER_* by config.js.php */
 const ERROR_PARSER_START = "START-MARKER-TYPED-OUT-FOR-ERROR-PARSER";
 const ERROR_PARSER_END   = "END-MARKER-TYPED-OUT-FOR-ERROR-PARSER";
 
+// texmf.cnf settings passed on every TeX command line: one message per log line (no wrapping at column 79) for the error parser, and wide error context; TeX requires error_line < 256 and half_error_line <= error_line - 15
+const TEX_LOG_OPTIONS  = " -cnf-line=max_print_line=1000 -cnf-line=error_line=254 -cnf-line=half_error_line=238 ";
 
-// minipage is used to hold the page width stable   // TODO: cave: as beamer demonstrates: there seems to be no effect of the wiodth - why ???
+const LATEX_COMMAND    =  LATEX_BINARY . TEX_LOG_OPTIONS . "  --interaction=nonstopmode  -file-line-error-style  ";
+const PDFLATEX_COMMAND =  PDFLATEX_BINARY . TEX_LOG_OPTIONS . " --interaction=nonstopmode -file-line-error-style ";
 
-
-// THIS we can deprecate
-// const MEASURE = "\\newwrite\\yposoutputfile\\openout\\yposoutputfile=\\jobname.ypos\\pdfsavepos\\write\\yposoutputfile{\\the\\pagetotal}";
-
-
-
-
-
-const LATEX_COMMAND    =  LATEX_BINARY . "  --interaction=nonstopmode  -file-line-error-style  "; 
-const PDFLATEX_COMMAND =  PDFLATEX_BINARY . " --interaction=nonstopmode -file-line-error-style ";
-
-const NODE_SCRIPT      = __DIR__."/../annos/offline.mjs";                            // path to the offline.mjs script
-const PDF2HTML         = NODE_BINARY." ".__DIR__."/../annos/annoHtml.js ";
 
 /*** System dependent components used in the filesystem path for php ***/
-const TEMPLATE_PATH        =  __DIR__."/../template/";                 // path to the template directory, relative to the installation path $IP  must end with a slash
 const LATEX_FORMAT_PATH    =  __DIR__."/../formats_latex/";     
 const PDFLATEX_FORMAT_PATH =  __DIR__."/../formats_pdflatex/";     
 const JS_PATH              =  __DIR__."/../js/";                                             // path to the directory containing javascript
@@ -118,12 +110,8 @@ const ATT_DEFAULT_NAME = "Info";
 
 
 /*** Components which may be addressed via URL */
-const TEMPLATE_URL       = "/extensions/Parsifal/template/";
 const ENDPOINT_URL       = "/extensions/Parsifal/endpoints/tex-preview.php";           // endpoint for the preview
 const ENDPOINT_REFRESH   = "/extensions/Parsifal/endpoints/tex-refresh.php";           // endpoint for the preview
 const HTML_URL           = "/extensions/Parsifal/html/";                               // path to the html directory containing texLog.html and others
-
-
-
 
 ?>
