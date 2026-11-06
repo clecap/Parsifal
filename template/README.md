@@ -1,1 +1,0 @@
-This is a temporary test directory to be deprecated soon.
