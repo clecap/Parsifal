@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<psalm
+  errorLevel="8"
+  phpVersion="8.4"
+  findUnusedCode="false"
+  findUnusedBaselineEntry="false"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns="https://getpsalm.org/schema/config"
+  xsi:schemaLocation="https://getpsalm.org/schema/config vendor/vimeo/psalm/config.xsd"
+>
+  <!--
+    Psalm configuration for Parsifal, used for taint analysis (security), see the psalm job in .github/workflows/security-scan.yml for the command line
+    Analyzed: only Parsifal's own PHP code (projectFiles). Scanned for types only: MediaWiki core and DantePolyfill.php (extraFiles), which the CI job checks out into mw-core/ and dante-delta/.
+    Because of these two directories, this configuration only works in CI, not in a local checkout.
+  -->
+
+  <!-- Parsifal's own PHP code -->
+  <projectFiles>
+    <directory name="php" />
+    <directory name="endpoints" />
+    <directory name="config" />
+    <file name="Parsifal.php" />
+    <file name="Parsifal.alias.php" />
+    <!-- third party code bundled in Parsifal -->
+    <ignoreFiles allowMissingFiles="true">
+      <directory name="vendor" />
+      <directory name="codemirror" />
+    </ignoreFiles>
+  </projectFiles>
+
+  <!-- MediaWiki core and DanteUtil: only scanned, so Psalm knows their classes and can follow tainted data through them -->
+  <extraFiles>
+    <directory name="mw-core/includes" />
+    <file name="dante-delta/DantePolyfill.php" />
+  </extraFiles>
+</psalm>

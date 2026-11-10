@@ -21,21 +21,127 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: [php, javascript]
+        language: [javascript, python]   # CodeQL does not support PHP; PHP is covered by the semgrep and psalm jobs below
 
     steps:
-      - uses: actions/checkout@v4
+      # Get the repository content
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      # Set up CodeQL for the language of this matrix entry
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           languages: ${{ matrix.language }}
           queries: security-and-quality
 
-      - name: Autobuild
-        uses: github/codeql-action/autobuild@v3
-
+      # Analyse and upload the results (no build step needed for interpreted languages)
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         with:
           category: "/language:${{ matrix.language }}"
+
+  # Pattern based security scanning with Semgrep, using the public PHP and security-audit rule sets (covers PHP, JS and Python)
+  semgrep:
+    name: Semgrep
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read   # only required for a private repository by upload-sarif to get the Action run status
+
+    steps:
+      # Monitor network access of the runner
+      - name: Harden Runner
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        with:
+          egress-policy: audit
+
+      # Get the repository content
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Install a fixed Semgrep version
+      - name: Install Semgrep
+        run: pip install semgrep==1.180.0
+
+      # Rule sets come from the public Semgrep registry; no account and no metrics needed; bundled third party code is skipped (vendor is skipped by default)
+      - name: Run Semgrep
+        run: semgrep scan
+          --config p/php
+          --config p/security-audit
+          --exclude codemirror
+          --metrics=off
+          --sarif
+          --output semgrep-results.sarif
+
+      # Report findings in Security / Code Scanning Alerts
+      - name: Upload analysis results to GitHub
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: semgrep-results.sarif
+          category: semgrep
+          wait-for-processing: true
+
+  # Taint analysis (security) of the PHP files with Psalm, configured in psalm.xml
+  psalm:
+    name: Psalm taint analysis
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read   # only required for a private repository by upload-sarif to get the Action run status
+
+    steps:
+      # Monitor network access of the runner
+      - name: Harden Runner
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        with:
+          egress-policy: audit
+
+      # Get the repository content
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # MediaWiki core in the version Dante uses (see MW_VERSION in includes/Defines.php of dante-delta), so Psalm knows the core classes
+      - name: Checkout MediaWiki core
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: wikimedia/mediawiki
+          ref: '1.39.0'
+          path: mw-core
+
+      # DanteUtil (used by TexProcessor to run external programs) is defined in DantePolyfill.php of dante-delta; fetch only that file
+      - name: Checkout DantePolyfill.php from dante-delta
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: clecap/dante-delta
+          path: dante-delta
+          sparse-checkout: DantePolyfill.php
+          sparse-checkout-cone-mode: false
+
+      # PHP and composer for installing Psalm
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.4'
+          tools: composer
+          coverage: none
+
+      # Psalm in its own directory, so it does not mix with anything in the repository
+      - name: Install Psalm
+        run: |
+          mkdir ../psalm-tool
+          composer require --working-dir=../psalm-tool --no-interaction --no-progress vimeo/psalm:6.20.0
+
+      # Findings make Psalm exit with an error; they are reported by the upload below
+      - name: Run Psalm
+        run: ../psalm-tool/vendor/bin/psalm --config=psalm.xml --taint-analysis --no-cache --no-progress --report=psalm-results.sarif
+        continue-on-error: true
+
+      # Report findings in Security / Code Scanning Alerts
+      - name: Upload analysis results to GitHub
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: psalm-results.sarif
+          category: psalm
+          wait-for-processing: true
