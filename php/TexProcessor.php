@@ -252,54 +252,6 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
 
 
 
-// given a $hash, returns html code with a rendering canvas
-// disadvantage: looks like pdfjslib is not properly reentrant and the parallel calls this may caus for several canvases could lead to issues
-// they show up when we have several canvases on the same html pag
-public static function canvasPdf ($hash, $width, $height) {
-  global $wgServer, $wgScriptPath;
-  $url = $wgServer.$wgScriptPath.CACHE_URL.$hash."_pc_pdflatex.pdf";
- // $canvas = "<canvas width='".$width."' height='".$height."' style='max-width: 100%; border:2px solid red;' data='".$url."'  id='canvas-".$hash."'  ></canvase>";
- $canvas = "<canvas  style='max-width: 100%; border:2px solid red;' data='".$url."'  id='canvas-".$hash."'  ></canvas>";
-
-  $js     = "<script>PRT.renderPDF ('".$url."','".$hash."');</script>";
-  $html = $canvas . $js;
-  return $html;
-}
-
-// given a $hash, return html code with an iframe rendering this inside of the iframe s
-public static function iframePdf ($hash, $width, $height, $scale, $titleInfo) {
-  global $wgServer, $wgScriptPath;
-  $basis  = $wgServer.$wgScriptPath."/extensions/Parsifal/html/pdfIframe.html";    // path to the html page generating canvas 
-  $url    = $wgServer.$wgScriptPath.CACHE_URL.$hash."_pc_pdflatex.pdf";
-  $urlSearch = "url=".urlencode ($url);
-  $urlScale  = "scale=".urlencode ($scale);
-  $urlInfo   = "info=true";
-  $urlHash   = "hash=".urlencode ($hash);
-  $iframeUrl = $basis."?".$urlSearch."&".$urlScale."&".$urlInfo."&".$urlHash;
-
-//  $style = "max-width:100%;" . "width:".$width."px; height:".$height."px; border:1px solid green;";
-
-  $width += 172;  // 62
-
-  $style = "max-width:100%;" . "width:".$width."px; height:".$height."; border:1px solid red; overflow:hidden; ";
-
-//  $style = "max-width:100%; width:100%; border:1px solid green;";
-
-  $infoLine = "<div>TexProcessor.php: Infoline: iframe is: width=$width  height=$height</div>";
-
-  $html = $infoLine."<iframe   scrolling='no'     style='".$style."' src='".$iframeUrl."'  id='iframe-".$hash."' title='".$hash."' ></iframe>";
-  return $html;
-}
-
-// render by producing a call to Parsifal Runtime.
-// advantage: client can decide, how to render a page
-public static function jsRender ($hash, $width, $height, $scale, $titleInfo) {
-  global $wgServer, $wgScriptPath;
-  return "<script> PRT.jsRender(\"$hash\", $width, \"$height\", $scale, \"$titleInfo\", \"$wgServer\", \"$wgScriptPath\", \""  .CACHE_URL. "\");</script>";
-}
-
-
-
   // NOTE: TeXProcessor::renderPreviewPNG and _base64 and called functions can be called from the web and from mediawiki and hence must not depend on any mediawiki global variables - all configuration done in config.php
 
 

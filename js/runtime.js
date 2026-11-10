@@ -93,84 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 
-let pdfJsLib          = null;    // handle to the pdfJsLib library
-let pdfJsLibRequested = false;   // has the pdfJsLib library already been requested
-
-// promises to return a reference to pdfJsLib
-const getPdfJsLib = () => {
-  if (pdfJsLib) {return Promise.resolve (pdfJsLib);}
-  return new Promise ( (resolve, reject) => {
-    var script = document.createElement("script");
-    script.onload = () => { 
-      pdfJsLib = window['pdfjs-dist/build/pdf'];
-      pdfJsLib.GlobalWorkerOptions.workerSrc = myPath + "/../vendor/pdfJs/pdf.worker.min.js";  
-      resolve ( pdfJsLib ); };
-    script.src = myPath + "/../vendor/pdfJs/pdf.min.js";
-    document.body.appendChild (script);
-    pdfJsLibRequested = true;
-  });
-};
-
-// API call function: promises to render the PDF connected with hash asap
-const renderPDF = async ( url, hash ) => {
-  let pdfJsLibRef  = await getPdfJsLib();
-
-  let loadingTask =  await pdfjsLib.getDocument (url);
-  let pdf          = await loadingTask.promise;
-  let page         = await pdf.getPage(1);
- 
-  let scale = 4;
-  let viewport = page.getViewport ( { scale: scale } );
-  let outputScale = window.devicePixelRatio || 1;   // Support HiDPI-screens
-
-  outputScale = outputScale;
-
-  let canvas  = document.getElementById('canvas-' + hash);
-  let context = canvas.getContext('2d');
-  canvas.width       = Math.floor(viewport.width * outputScale);
-  canvas.height      = Math.floor(viewport.height * outputScale);
-
-  console.log ("Parsifal runtime renderPdf size:  canvas size=" + canvas.width + "x" + canvas.height + "   canvas style size=" + Math.floor(viewport.width) + "x" + Math.floor(viewport.height) );
-
-  Object.assign (canvas.style, {width: Math.floor(viewport.width) + "px", height: Math.floor(viewport.height) + "px" } );
-
-  var transform = (outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null);
-  transform = null;  // TODO ??
-  let renderContext = { canvasContext: context,  transform: transform,  viewport: viewport };
-  let job = await page.render(renderContext);
-  return job;
-};
-
-
-
-const jsRender = (hash, width, height, scale, titelInfo, wgServer, wgScriptPath, CACHE_URL) => {
-  var basis  = wgServer +  wgScriptPath + "/extensions/Parsifal/html/pdfIframe.html";    // path to the html page generating canvas 
-  var url    = wgServer +  wgScriptPath + CACHE_URL + hash + "_pc_pdflatex.pdf";
-  var urlSearch = "url=" + encodeURIComponent (url);
-  var urlScale  = "scale=" + encodeURIComponent (scale);
-  var urlInfo   = "info=true";
-  var urlHash   = "hash=" + encodeURIComponent (hash);
-  var iframeUrl = basis + "?" + urlSearch + "&" + urlScale + "&" + urlInfo + "&" + urlHash;
-
-//  $style = "max-width:100%;" . "width:".$width."px; height:".$height."px; border:1px solid green;";
-
-  width += 172;  // 62  // TODO: WHAT IS THIS ??
-  var style = "max-width:100%;" + "width:" + width + "px; height:" +  height + "; border:1px solid red; overflow:hidden; ";
-
-//  $style = "max-width:100%; width:100%; border:1px solid green;";
-
-  var infoLine = `<div>TexProcessor.php: Infoline: iframe is: width=${width}  height=${height}</div>`;
-
-  var html = infoLine + "<iframe   scrolling='no'     style='" + style + "' src='" + iframeUrl + "'  id='iframe-" + hash + "' title='" + hash + "' ></iframe>";
-  
-  console.warn (html);
-  document.write (html);
-  return html;
-}
-
-
-
-
 const toggleLimitSize = () => {
   let sizeLimit = window.localStorage.getItem ("Parsifal-size-limit") === "true";  
   limitSize ( !sizeLimit);
@@ -323,8 +245,7 @@ function getComments (root) {
 }
 */
 
-return ( {renderPDF, jsRender, 
-         toggleLimitSize,   limitSize,         implementLimitedSize, 
+return ( {toggleLimitSize,   limitSize,         implementLimitedSize, 
          togglePreview,     setPreviewSetting, implementPreviewSetting,
          toggleVariants,    showVariants,      implementShowVariants ,
          toggleEditHandles, editHandles,       implementEditHandles,
