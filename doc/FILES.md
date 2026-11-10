@@ -9,7 +9,6 @@ The intended installation point of Parsifal is extensions/Parsifal.
 
 | Directory         |  Contents |
 | -----------       | ----------- |
-| /annos            |  The subsystem translating PDF annotations and links |
 | /codemirror       |  Our own adaptations for codemirror |
 | /css              |  css files, may be part of resource bundles      |
 | /doc              |  documentation of the extension in md format       |

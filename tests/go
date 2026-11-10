@@ -1,4 +1,0 @@
-#!/bin/bash
-
-mutool run ../js/my-device.js 2.54 /var/www/html/wiki4/extensions/Parsifal/tests/t 
-

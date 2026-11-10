@@ -1,4 +1,0 @@
-PWD /Users/cap/DOCKER/dante-wiki/volumes/full/content/wiki-dir/extensions/Parsifal/tests/ocg-tests
-INPUT /usr/local/texlive/2020/texmf.cnf
-INPUT /usr/local/texlive/2020/texmf-dist/web2c/texmf.cnf
-INPUT /Users/cap/tmp/amsmath.fmt
