@@ -29,7 +29,7 @@ The intended installation point of Parsifal is extensions/Parsifal.
 | README.md         |  a general readme |
 | .gitignore        |  gitignore file |
  
-
+  
 ## File extensions
 
 ### Goals
