@@ -10,6 +10,9 @@
   
           
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Title\Title;
+use MediaWiki\Parser\Parser;
+use MediaWiki\Parser\PPFrame;       
 
 require_once ("config/config.php");                // include path configuration
 require_once ("php/TexProcessor.php");
@@ -20,9 +23,11 @@ class Parsifal {                                  // glue class of the extension
   public static function onParserFirstCallInit ( Parser $parser ) {  // Register parser callback hooks
 
     $VERBOSE = true;
-    $title = $parser->getTitle();
+
+    $page  = $parser->getPage();
+    $title = $page ? Title::castFromPageReference( $page )->getPrefixedText() : '(no page)';
     if ($VERBOSE) {TeXProcessor::debugLog( "-------- Parsifal::onParserFirstCallInit called for page of title: ".$title.  " \n");}
-    
+
     ///// ???? not clear what this is ?????? // TODO: what was the idea here??
     if (property_exists ($parser, "calledFromParsifalFullPage") && $parser->calledFromParsifalFullPage) {
         $parser->setHook ( 'block',            function ($in, $ar, $parser, $frame) { return "<div style='width:619px;color:red;'>---------------" . $in . "</div>";  }    );         // implement a <block> construct  // TODO: make width adjustable !!
