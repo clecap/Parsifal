@@ -1,31 +1,52 @@
 
-\documentclass[]{standalone} 
+\documentclass[varwidth=15cm,margin=0.07cm]{standalone} 
 
-
-\pdfcompresslevel=0
-\pdfobjcompresslevel=0
-
-%%   
-%% Standard package imports        
 %%
+%% Standard package imports        
+%%  
 
 \usepackage[T1]{fontenc}             % fontencoding - FIRST load fontencoding 
 \usepackage[utf8]{inputenc}          % and only THEN load UTF-8 see https://tex.stackexchange.com/questions/13067/
 \usepackage{ucs}                     % unicode support
-\usepackage{comment}                 %    allows to flag portions of the document using \begin{comment} ... \end{comment}
+\usepackage{comment}                 % allows to flag portions of the document using \begin{comment} ... \end{comment}
 
 \usepackage{csquotes}                % quotes
 \usepackage{tabto}                   % command \tabto{2cm}
 \usepackage[usenames]{color}         % Should load before tcolorbox                  
-
-
 \usepackage{tcolorbox}
+\usepackage{xstring}                 % provides string manipulation, needed for definition of \dref and \durl in TexProcessor.php           
 
-
-
-\usepackage{xstring}
 
 %% minted is included dynamically
+
+%%
+%% Delayed minted initialization code  
+%% * We do not load minted here as part of the normal preamble as it slows down normal latex compilation
+%% * we only load minted on demand using attribute minted
+%% * However we cannot execute this in situations where we do not load the minted package
+%% * Therefore we define a (delayed executing) macro \initializeMinted here
+%%   in case the user sets the minted
+%%   attribute in the Latex tag - inject this as part of the PHP code.
+%% * Still we have the code here and can edit it as part of Dantewiki :-)
+%%
+
+% boxsep value sequence is: top left bottom right
+\def\initMintedLinenos{
+  \tcbuselibrary{breakable}
+  \tcbuselibrary{minted}
+  \renewcommand\theFancyVerbLine{\footnotesize\arabic{FancyVerbLine}}
+  \setminted{linenos=true,numbersep=6pt}
+  \BeforeBeginEnvironment{minted}{\begin{tcolorbox}[top=0pt, left=12pt, bottom=0pt, right=0pt,boxrule=0pt]}
+  \AfterEndEnvironment{minted}{\end{tcolorbox}}
+}
+
+\def\initMintedBox{
+  \tcbuselibrary{breakable}
+  \tcbuselibrary{minted}
+  \BeforeBeginEnvironment{minted}{\begin{tcolorbox}[top=0pt, left=0pt, bottom=0pt, right=0pt,boxrule=1pt]}
+  \AfterEndEnvironment{minted}{\end{tcolorbox}}
+}
+
 
 %%
 %% DRAWING and GRAPHICS
@@ -40,7 +61,9 @@
 \usetikzlibrary{quotes,angles}
 \usetikzlibrary{mindmap}%  
 \usetikzlibrary{shadows}%                           % needed by mindmaps
+\usetikzlibrary{automata, arrows}
 
+\usepackage{tikz-qtree}
 
 \usepackage{qrcode}                                   % defines \qrcode[height=1cm,level=L]{ABCD} level: L M Q H for low medium ... quality
 \usepackage[percent]{overpic}                         % wrote some text directly over a picture, see 
@@ -56,6 +79,20 @@
 
 \def\tikzrad{\pgfplotsset{trig format plots=rad}\tikzset{trig format=rad}}
 \def\tikzdeg{\pgfplotsset{trig format plots=deg}\tikzset{trig format=deg}}
+
+
+\def\tikzAutomaton{
+  \tikzdeg%
+  \tikzset{
+    ->,                                       % makes the edges directed
+    >=stealth,                                % makes the arrow heads bold
+    node distance=2cm,                        % specifies the minimum distance between two nodes. Change if necessary.
+    every state/.style={thick, fill=gray!10}, % sets the properties for each ’state’ node
+    initial text=$ $,                         % sets the text that appears on the start arrow
+  }%
+}
+
+
 
 %% TODO: what is this for ??
 \newcommand*{\info}[4][16.3]{%
@@ -97,6 +134,7 @@
 
 \input{../local/chc-jpabox.tex}
 \input{../local/variants.tex}
+\input{../local/image-patch.tex}
 
 
 
@@ -147,7 +185,7 @@
 
 \def\myInitialize{%   needed for initializations to be done after begin{document} which are taken out by the precompilation process
   \parindent 0pt
-  \parskip 0.25cm
+  \parskip 0.2cm
   \chcdisplayskipadjust
   \initializeVariants
 }
@@ -198,9 +236,6 @@
 %%
 %% LOCALIZATION
 %%  
-%\usepackage[shorthands=off,german]{babel}%  localization; MUST turn off 
-% shorthands due to an interference with some xypic features
-
 
 
 %%
@@ -236,6 +271,9 @@
     label=\textbf{(\arabic*)},
     after={\vspace*{1.5\parskip}}
   }
+  \setlist[enumerate,2]{
+    label=(\arabic*)
+  }
 }
 
 \enumerateWithBrackets
@@ -248,7 +286,8 @@
 \setlist[itemize]{
   partopsep=1.0\parskip,
   topsep=-0.5\parskip,
-  itemsep=0cm
+  itemsep=0cm,
+  after={\vspace*{1.5\parskip}}
 }
 
 \setlist[description]{itemindent=-1.5em, labelsep=0pt,partopsep=\parskip,topsep=-\parskip}
@@ -282,7 +321,7 @@
 %\usepackage{txfonts}
 
 \usepackage{stix}                  % needed for \operp and similar symbols
-\usepackage{stmaryrd}              % needed for \bigsqcap
+\usepackage{stmaryrd}               % needed for \bigsqcap
 \usepackage{fontawesome}           % make fontawesome with some additional symbols available, for example \faTV etc
 \usepackage{wasysym}               % some symbols
 \usepackage{eurosym}               % euro symbol
@@ -295,6 +334,8 @@
 \def\be{\begin{equation}}
 \def\ee{\end{equation}}
 
+% underline boldface
+\def\ubf#1{\underline{\textbf{#1}}}
 
 
 % add shortcut for roman literals
@@ -470,7 +511,6 @@
 %%%  END OF TWEAK ITEMIZATIONS
 %%%
 
-\def\ubf#1{\underline{\textbf{#1}}}
 
 %%
 %% SPACING MACROS
@@ -493,4 +533,7 @@
 %%
 
 \def\title#1{\textbf{\large #1}}
+
+
+\AtBeginDocument{\parskip 0.2cm}
 
