@@ -24,9 +24,12 @@ class Parsifal {                                  // glue class of the extension
 
     $VERBOSE = true;
 
-    $page  = $parser->getPage();
-    $title = $page ? Title::castFromPageReference( $page )->getPrefixedText() : '(no page)';
-    if ($VERBOSE) {TeXProcessor::debugLog( "-------- Parsifal::onParserFirstCallInit called for page of title: ".$title.  " \n");}
+    // log the page title; getPage() throws an Error if the parser's typed property mTitle is not yet initialized (private, so it cannot be checked beforehand)
+    if ($VERBOSE) {
+      try { $page = $parser->getPage(); } catch ( \Error $e ) { $page = null; }
+      $title = $page ? Title::castFromPageReference( $page )->getPrefixedText() : '(no page)';
+      TeXProcessor::debugLog( "-------- Parsifal::onParserFirstCallInit called for page of title: ".$title.  " \n");
+    }
 
     ///// ???? not clear what this is ?????? // TODO: what was the idea here??
     if (property_exists ($parser, "calledFromParsifalFullPage") && $parser->calledFromParsifalFullPage) {
