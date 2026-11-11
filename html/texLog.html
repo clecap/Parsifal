@@ -1,13 +1,16 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
 <head>
+<meta charset="utf-8">
+<title>Parsifal LaTeX Transcript</title>
 
 <style>
 * {font-family:monospace;}
-#srcContainer {border:2px solid black; border-radius: 10px; height:30%; overflow:scroll; padding:5px;}
+#srcContainer {border:2px solid black; border-radius: 10px; height:30vh; overflow:scroll; padding:5px;}  /* vh, since % heights do not resolve against the viewport in standards mode */
 
 #srcContainer span {font-family: monospace; color:grey;}
 
-#logContainer {border:2px solid black; border-radius: 10px; height:30%; overflow:scroll; padding:5px;}
+#logContainer {border:2px solid black; border-radius: 10px; height:30vh; overflow:scroll; padding:5px;}  /* vh, since % heights do not resolve against the viewport in standards mode */
   
 .impErr {color:red; font-weight:bold; font-family:monospace;} /* markup class for important parts of the error message */
 
@@ -51,7 +54,12 @@ if (iframe) {iframe.parentNode.removeChild(iframe);}
 
 </script>
 
-<button id="remove" onclick="removeMe();">Close</button>
+<button id="remove">Close</button>
+
+<script>
+// attach the close handler here instead of an inline onclick attribute (allows a Content Security Policy without 'unsafe-inline' handlers)
+document.getElementById ("remove").addEventListener ("click", removeMe);
+</script>
 
 <h2>Errors</h2>
 <div id="accContainer"></div>
@@ -94,6 +102,7 @@ const VERBOSE           = true;
 /* import parameters from config.js.php global space into local name space */
 const ERROR_PARSER_START = window.ERROR_PARSER_START;    // at this line the error messages relevant for us start
 const ERROR_PARSER_END   = window.ERROR_PARSER_END;      // at this line the error messages relevant for us end
+const CACHE_URL          = window.CACHE_URL;             // URL path of the Parsifal cache relative to scriptPath, with leading and trailing slash
 
 const logContainer = document.getElementById ("logContainer");  // the container into which we fill in the info
 
@@ -127,7 +136,7 @@ function formatSrc (name) {
 
   name = name + ".tex";
   var srcPath = document.getElementById ("srcPath");
-  srcPath.innerHTML = name;
+  srcPath.textContent = name;  // text only, never parsed as HTML
   var srcLink = document.getElementById ("srcLink");
   srcLink.href = name;
 
@@ -143,8 +152,6 @@ function formatSrc (name) {
     let num = 1;
     txt.split("\n").map( ele => {      
       var cont;
-      var idx;
-      
       var cont = document.createElement ("div");
 
       let lineNum = document.createElement ("span");
@@ -177,10 +184,29 @@ function initAccordion () {
   }
 }
 
-console.log (window.location.search.substring(1));
+/**
+ * Validates the query-string parameter and returns it as a safe same-origin URL, or null.
+ * @param {string} raw - Raw query string without the leading "?".
+ * @returns {string|null} Normalized absolute URL of the cache file base, or null if rejected.
+ */
+function sanitizeName (raw) {
+  // parse relative to this page; unparsable input is rejected
+  let url;
+  try { url = new URL (raw, window.location.href); } catch (e) { return null; }
+  // same origin only: rejects javascript:, data: (origin "null") and foreign hosts
+  if (url.origin !== window.location.origin) { return null; }
+  // fail closed if the cache location was not delivered by config.js.php
+  if (typeof CACHE_URL !== "string" || CACHE_URL === "") { return null; }
+  // only files in the Parsifal cache with the form <hash>_<mode>; CACHE_URL is regex-escaped; no query or fragment
+  const cacheRegex = new RegExp (CACHE_URL.replace (/[.*+?^${}()|[\]\\]/g, "\\$&") + "[A-Za-z0-9]+_[A-Za-z0-9_-]+$");
+  if (!cacheRegex.test (url.pathname) || url.search || url.hash) { return null; }
+  return url.href;
+}
 
-formatLog  (window.location.search.substring (1));
-formatSrc  (window.location.search.substring (1));
+// validate the parameter once, then use only the validated value
+const safeName = sanitizeName (window.location.search.substring (1));
+if (safeName) { formatLog (safeName); formatSrc (safeName); }
+else { console.error ("Parsifal: texLog.html: rejected invalid parameter"); document.getElementById ("accContainer").textContent = "Parsifal: invalid log parameter."; }
 
 </script>
 

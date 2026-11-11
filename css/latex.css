@@ -121,8 +121,8 @@ html .vector-body h6  { font-size: 1em;}
 
 /* NOTE: We want to have the scrollbar all the time or a resizing of the editor makes scrollbar appear / diosappear and breals the layout */
 
-#inline-edit-preview-container.latex-error   { }  /* class marking in case of a latex error */
-#inline-edit-preview-container.latex-ok     { }                        /* class marking in case of no latex error */
+#inline-edit-preview-container.latex-error  { --placeholder:0; }     /* class marking in case of a latex error */
+#inline-edit-preview-container.latex-ok     { --placeholder:0; }     /* class marking in case of no latex error */
 
 
 /* markings of the image - are we in error, preliminary, final etc */  
@@ -155,8 +155,6 @@ body.shift-down  .inline-edit-preview-img   {border:4px solid red;}
 #textarea-wrapper {position:relative; display:inline-block; box-sizing: border-box;}
 
 
-.latex-error  {}  /* class marking in case of a latex error */
-.latex-ok     {}                        /* class markign in case of no latex error */
 
 
 /* not included - why ??? */
@@ -173,7 +171,7 @@ body.shift-down  .inline-edit-preview-img   {border:4px solid red;}
 
 /* for the container of the annotation layer */
 /* note: this element has no width or height or size, it merely carries and positions the annotations   transform:scale(0.940);   transform:scale(1.540);*/
-.annoLayer {}
+.annoLayer {  --placeholder:0;}
 
 /******************/
 /** error marker and edit handles **/

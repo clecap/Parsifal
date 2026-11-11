@@ -5,7 +5,7 @@
 require_once (__DIR__ . "/config.php");                                              // single source of truth for the shared constants
 
 // names of the constants from config.php which are exported to JavaScript
-const JS_EXPORTS = array ("ERROR_PARSER_START", "ERROR_PARSER_END");
+const JS_EXPORTS = array ("ERROR_PARSER_START", "ERROR_PARSER_END", "CACHE_URL");
 
 // deliver as JavaScript and prevent stale copies after config.php changes
 header ("Content-Type: application/javascript; charset=utf-8");

@@ -130,7 +130,7 @@ function accFormatter (arr, skip) {
     if (skip && obj.lineNum == -1) {return;}
     let txt = ""; obj.txt.forEach ( (chunk) => { txt += "<div>" + htmlEscape (chunk) + "</div>" } );
     accContainer.innerHTML += `
-      <button class="accordion"><b>${obj.lineNum}: ${obj.error}</b> ${ (obj.offending ? obj.offending : "") }</button>
+      <button class="accordion"><b>${htmlEscape (obj.lineNum)}: ${htmlEscape (obj.error)}</b> ${htmlEscape (obj.offending || "")}</button>
       <div class="panel"><p>${txt}</p></div>
      `;
   });

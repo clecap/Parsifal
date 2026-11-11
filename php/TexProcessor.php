@@ -431,8 +431,8 @@ private static function modifyTex ( string $rawContent, string $tag, string $mod
 // CURRENTLY USED 
 /** GENERATE PNG from PDF. Transforms $hash$inFinal.pdf into $hash$inFinal.png */
 private static function Pdf2PngHtmlMT ($hash, $scale, $inFinal, $outFinal, &$width, &$height, &$duration = null) {
-  $VERBOSE = false; 
-  $JS_PATH = JS_PATH;  $CACHE_PATH = CACHE_PATH;  $PY_PATH = PY_PATH;
+  $VERBOSE = false;
+  $CACHE_PATH = CACHE_PATH;  $PY_PATH = PY_PATH;
 
   $cmd = "$PY_PATH/make.py $scale $CACHE_PATH$hash$inFinal $CACHE_PATH$hash$outFinal ";
   if ($VERBOSE)  { self::debugLog ("\n TeXProcessor::Pdf2PngHtmlMT $hash starting: \n"); }
@@ -456,8 +456,8 @@ private static function Pdf2PngHtmlMT ($hash, $scale, $inFinal, $outFinal, &$wid
 // CURRENTLY NOT UISED
 // this is the variant returning the html / svg / annotation code directly
 private static function Pdf2PngHtmlMT_RET ($hash, $scale, $inFinal, $outFinal, &$duration = null) {
-  $VERBOSE = true; 
-  $JS_PATH = JS_PATH;  $CACHE_PATH = CACHE_PATH;  $PY_PATH = PY_PATH;
+  $VERBOSE = true;
+  $CACHE_PATH = CACHE_PATH;  $PY_PATH = PY_PATH;
 
   $cmd = "$PY_PATH/make2.py $scale $CACHE_PATH$hash$inFinal $CACHE_PATH$hash$outFinal "; 
  if ($VERBOSE)  { self::debugLog ("\n TeXProcessor:: executor $hash starting: \n"); }

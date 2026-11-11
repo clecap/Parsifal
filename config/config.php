@@ -8,9 +8,6 @@
 
 
 
-const MUTOOL            = "/usr/bin/mutool";                                         // path to the mutool executable:      determine by which mutool
-
-
 const LATEX_BINARY      = "latex";
 const PDFLATEX_BINARY   = "pdflatex";                                                // path to pdflatex executable;
 
@@ -63,7 +60,6 @@ const PDFLATEX_COMMAND =  PDFLATEX_BINARY . TEX_LOG_OPTIONS . " --interaction=no
 /*** System dependent components used in the filesystem path for php ***/
 const LATEX_FORMAT_PATH    =  __DIR__."/../formats_latex/";     
 const PDFLATEX_FORMAT_PATH =  __DIR__."/../formats_pdflatex/";     
-const JS_PATH              =  __DIR__."/../js/";                                             // path to the directory containing javascript
 const PY_PATH              =  __DIR__."/../py/";                                             // path to the directory containing python scripts
 
 

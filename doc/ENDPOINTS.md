@@ -32,19 +32,7 @@ file access might not know about the error status.
 
 There are the following endpoints:
 
-
-tex-preview-node.php
 tex-preview.php
-
-
-
-
-
-
-
-
-
-
 
 
 

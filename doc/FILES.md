@@ -52,7 +52,7 @@ The intended installation point of Parsifal is extensions/Parsifal.
 | 0815_pc_latex.*      | Files used in the latex precompilation process |
 | 0815_pc_pdflatex.*   | Files used in the pdflatex precompilation process |
 | 0815_node.*          | Files generated in the  |
-| 0815_mt1                    | Files generated in the mutool process  |
+| 0815_pc_pdflatex_final_3.*  | PNG and HTML generated from the PDF by PyMuPDF (py/make.py) |
 | MediaWiki:ParsifalTemplate  | Directory of all templates which are used  |
 | MediaWiki:ParsifalTemplate/`tag`  | Template in use for markup tag `tag`  |
 

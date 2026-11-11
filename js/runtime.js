@@ -261,9 +261,6 @@ PRT.implementLimitedSize();
 PRT.implementEditHandles();
 PRT.implementCodeMirror ();
 
-
-// DEBUG stuff
-
 // console.error ("Parsifal runtime.js has loaded successfully");
 //console.log ("post Parsifal loader: ", Object.keys (mw.loader));
 //setTimeout ( () => { console.log ("post post Parsifal loader: ", Object.keys (mw.loader));}, 2000 );

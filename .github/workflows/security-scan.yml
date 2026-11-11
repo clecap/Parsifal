@@ -145,3 +145,100 @@ jobs:
           sarif_file: psalm-results.sarif
           category: psalm
           wait-for-processing: true
+
+  # Linting of our own CSS files with stylelint, configured in .stylelintrc.json (vendor and codemirror are third party code and skipped)
+  stylelint:
+    name: Stylelint (CSS)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read   # only required for a private repository by upload-sarif to get the Action run status
+
+    steps:
+      # Monitor network access of the runner
+      - name: Harden Runner
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        with:
+          egress-policy: audit
+
+      # Get the repository content
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Fixed versions, installed without package.json or lock file; the preinstalled Node of the runner is used (stylelint 17 needs Node >= 20.19)
+      - name: Install stylelint
+        run: |
+          node --version
+          npm install --no-save --no-package-lock --no-audit --no-fund stylelint@17.16.0 stylelint-config-recommended@18.0.0
+
+      # Findings make stylelint exit with an error; they are reported by the upload below
+      - name: Run stylelint
+        run: npx stylelint "**/*.css" --ignore-pattern "vendor/**" --ignore-pattern "codemirror/**" --ignore-pattern "node_modules/**" --allow-empty-input --formatter json --output-file stylelint-results.json
+        continue-on-error: true
+
+      # stylelint has no maintained SARIF formatter, so convert its JSON report to SARIF 2.1.0
+      - name: Convert stylelint report to SARIF
+        run: |
+          python3 - <<'EOF'
+          import json, os
+          root = os.environ["GITHUB_WORKSPACE"]
+          with open("stylelint-results.json") as f: files = json.load(f)
+          rules, results = {}, []
+          for file in files:
+            uri = os.path.relpath(file["source"], root).replace(os.sep, "/")
+            for w in file.get("warnings", []):
+              rule = w.get("rule") or "stylelint"
+              rules[rule] = {"id": rule, "shortDescription": {"text": rule}, "helpUri": "https://stylelint.io/user-guide/rules/" + rule}
+              region = {"startLine": w.get("line", 1), "startColumn": w.get("column", 1)}
+              if w.get("endLine"): region.update({"endLine": w["endLine"], "endColumn": w.get("endColumn", region["startColumn"])})
+              results.append({"ruleId": rule, "level": "error" if w.get("severity") == "error" else "warning", "message": {"text": w.get("text", rule)}, "locations": [{"physicalLocation": {"artifactLocation": {"uri": uri}, "region": region}}]})
+          sarif = {"version": "2.1.0", "$schema": "https://json.schemastore.org/sarif-2.1.0.json", "runs": [{"tool": {"driver": {"name": "stylelint", "informationUri": "https://stylelint.io/", "rules": list(rules.values())}}, "results": results}]}
+          with open("stylelint-results.sarif", "w") as f: json.dump(sarif, f, indent=2)
+          print(f"{len(results)} stylelint findings converted")
+          EOF
+
+      # Report findings in Security / Code Scanning Alerts
+      - name: Upload analysis results to GitHub
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: stylelint-results.sarif
+          category: stylelint
+          wait-for-processing: true
+
+  # Linting of our own HTML files with HTMLHint, configured in .htmlhintrc (vendor and codemirror are third party code and skipped)
+  htmlhint:
+    name: HTMLHint (HTML)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+      actions: read   # only required for a private repository by upload-sarif to get the Action run status
+
+    steps:
+      # Monitor network access of the runner
+      - name: Harden Runner
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
+        with:
+          egress-policy: audit
+
+      # Get the repository content
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Fixed version, installed without package.json or lock file; the preinstalled Node of the runner is used
+      - name: Install HTMLHint
+        run: npm install --no-save --no-package-lock --no-audit --no-fund htmlhint@1.9.2
+
+      # The built-in SARIF formatter writes htmlhint.sarif into the working directory; findings make HTMLHint exit with an error
+      - name: Run HTMLHint
+        run: npx htmlhint "**/*.html" --ignore "vendor/**,codemirror/**,node_modules/**" --config .htmlhintrc --format sarif
+        continue-on-error: true
+
+      # Report findings in Security / Code Scanning Alerts
+      - name: Upload analysis results to GitHub
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        with:
+          sarif_file: htmlhint.sarif
+          category: htmlhint
+          wait-for-processing: true

@@ -13,3 +13,6 @@ apk add py3-pygments
 
 You must invoke LaTeX with the -shell-escape flag.
 
+
+
+NEED to limit the -shell-escape flag !!!
