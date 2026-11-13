@@ -47,6 +47,10 @@ class Decorator {
   public function wrap ( ?string $annotations = "", string $softError = "", string $errPath = "", string $titleInfo ="", string $hash="") {
     global $wgScriptPath;
 
+    // escape values inserted into HTML: soft error is plain text from the LaTeX log, path goes into an attribute
+    $softError = htmlspecialchars ($softError, ENT_QUOTES);
+    $errPath   = htmlspecialchars ($errPath,   ENT_QUOTES);
+
     // ERROR INFORMATION
     if ($softError === "") {
 
@@ -120,12 +124,12 @@ HEADER;
 
   public function wrapCollapsible ( ?string $label="Collapsed" , bool $open = true, $errorMarker = false) {
     $size           = BASIC_SIZE + 10;   
-    $styleIni       = ( $open ? "display:block;" : "display:none;") . "width:$size px;";                                                                                             // initial styling of the collapsible  
+    $styleIni       = ( $open ? "display:block;" : "display:none;") . "width:{$size}px;";                                                                                             // initial styling of the collapsible  
     $styleBtn       = (array_key_exists ($label, ATT2STYLE_SPEC) ? ATT2STYLE_SPEC[$label] : ATT_DEFAULT_STYLE_SPEC ) . "display:inline-block; position:relative;"; 
-    if ( $label === null || strlen (trim($label)) == 0) {$labelBtn = "&nbsp;";}
+    // label comes from wikitext attributes o="..." / c="...": escape to prevent HTML injection; blank label gives a roundish button without text
+    $labelHtml = ( $label === null || strlen (trim($label)) == 0) ? "&nbsp;" : htmlspecialchars ($label, ENT_QUOTES);
 
-   
-    $this->content  =  "<div onclick='toggleNext(event);' title='Click to toggle visibility; with shift for multiple selection' class='collapseButton' style='$styleBtn'><a href='' onclick='collapseAnchor(event);'>$label</a></div>".
+    $this->content  =  "<div onclick='toggleNext(event);' title='Click to toggle visibility; with shift for multiple selection' class='collapseButton' style='$styleBtn'><a href='' onclick='collapseAnchor(event);'>$labelHtml</a></div>".
                       "<div onclick='toggleImg(event);' style='$styleIni' class='collapseResult'>".$this->content."</div>";
   return $this;
   }
@@ -138,7 +142,7 @@ HEADER;
       if ( array_key_exists ("b", $ar) )      { $style .= "border:1px solid gold;";            }     // add a border
       if ( array_key_exists ("br", $ar) )     { $style .= "border-radius:5px;";                }     // add a border radius
       if ( array_key_exists ("bs", $ar) )     { $style .= "box-shadow: 10px 10px lightgrey;";  }     // add a box shadow
-      if ( array_key_exists ("style", $ar) )  { $style .= $ar["style"];            }             // add custom style for the img tag
+      if ( array_key_exists ("style", $ar) )  { $style .= htmlspecialchars ( Sanitizer::checkCss ($ar["style"]), ENT_QUOTES ); }  // add custom style for the img tag; from wikitext: neutralize dangerous CSS and prevent breaking out of the style attribute
   }
 
 

@@ -198,7 +198,7 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
       }
 
       /** BUILD IMG TAG **/
-      $naming = ( array_key_exists ("n", $ar) ? "data-name='".$ar["n"]."' " : "");             // prepare a data-name attribute for the image
+      $naming = ( array_key_exists ("n", $ar) ? "data-name='".htmlspecialchars ($ar["n"], ENT_QUOTES)."' " : "");             // prepare a data-name attribute for the image
 
       // image tag style
       $style = "style=\"";
