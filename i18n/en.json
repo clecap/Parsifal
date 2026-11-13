@@ -3,7 +3,7 @@
     "authors": ["Clemens H. Cap"]
   },
   "parsifalreset":    "Parsifal: Reset cache and log",
-  "parsifalreset-legend":    "Press submit to clear the Parsifal cache and log file, clear the page and parser caches and remove several other Dante log files and the sidebar cache file of DanteTree",
+  "parsifalreset-legend":    "Select reset tasks",
   "parsifalformat":   "Parsifal: Format page for TeX, Print, PDF",  
   "parsifal-desc": "An extension enabling LaTeX and other high-quality media processing in Mediawiki",
   "prefs-parsifal":  "Parsifal",
