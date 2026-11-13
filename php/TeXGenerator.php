@@ -47,7 +47,9 @@ public static function generateEndPreambleStuff ($ar, $tag) {
      if ( array_key_exists ("minted-linenos", $ar) ) { $mintedInit .= "\\initMintedLinenos";}  else {}
      if ( array_key_exists ("minted-box",     $ar) ) { $mintedInit .= "\\initMintedBox";}       else {}
 
-    $stuff = $stuff . "\\usepackage[outputdir=".CACHE_PATH.",newfloat=true,cache]{minted}\\usemintedstyle{".$mintedStyle."}".$mintedInit; 
+    // no outputdir option: minted v3+ rejects it (error, exit code 1) and detects the output directory itself from -output-directory (TeX Live 2024+)
+    // highlightmode=immediate: the default fastfirst mode typesets red <MINTED> placeholders when no cache index exists yet and highlights only at \end{document}, which would require a second run
+    $stuff = $stuff . "\\usepackage[newfloat=true,cache,highlightmode=immediate]{minted}\\usemintedstyle{".$mintedStyle."}".$mintedInit;
 
   }
 

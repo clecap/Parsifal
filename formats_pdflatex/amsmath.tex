@@ -21,7 +21,7 @@
 
 %%
 %% Delayed minted initialization code  
-%% * We do not load minted here as part of the normal preamble as it slows down normal latex compilation
+%% * We do not load minted here as part of the normal preamble as it slows down normal lat  ex compilation
 %% * we only load minted on demand using attribute minted
 %% * However we cannot execute this in situations where we do not load the minted package
 %% * Therefore we define a (delayed executing) macro \initializeMinted here
@@ -200,7 +200,8 @@
   hyperfootnotes=true,    % footnote marks as links
   unicode=true,           % https://tex.stackexchange.com/questions/10555/hyperref-warning-token-not-allowed-in-a-pdf-string
   breaklinks=true,         % allow to break links
-  hypertexnames=true
+  hypertexnames=true,
+  bookmarks=false % Silence unnecessary generation of PDF bookmarks
 ]{hyperref}
 
 %%

@@ -50,11 +50,11 @@ public static function precompile ($name) {
   $cmd2 = PDFLATEX_COMMAND . " -ini -recorder -output-directory=$PDFLATEX_FORMAT_PATH \"&pdflatex $PDFLATEX_FORMAT_PATH/$name.tex\dump\" ";    
   if ($VERBOSE) { self::debugLog("TeXProcessor::precompile: will now execute pdflatex precompile command ".$cmd2."\n"); }
   $output2 = null; $retVal2 = null; 
-  $retVal1 = DanteUtil::executor ($cmd2, $output2, $error2, null /* [TeXProcessor::class, "debugLog"]*/, $duration2);
+  $retVal2 = DanteUtil::executor ($cmd2, $output2, $error2, null /* [TeXProcessor::class, "debugLog"]*/, $duration2);
   if ($VERBOSE) {self::debugLog("TeXProcessor::precompile: pdflatex command returned: $retVal2 and output: " . print_r ($output2, true)); } 
   if ($retVal1 != 0 || $retVal2 != 0) {
     return "\nCommand1 was: $cmd1\nRetVal1 was $retVal1\nOutput1 was " . print_r($output1, true) . "\n" . print_r ($error1, true) . "\n\n". 
-           "\nCommand2 was: $cmd2\nRetVal1 was $retVal2\nOutput1 was " . print_r($output2, true);
+           "\nCommand2 was: $cmd2\nRetVal2 was $retVal2\nOutput2 was " . print_r($output2, true) . "\n" . print_r ($error2, true);
   }
   else {return false;}
 }
@@ -89,8 +89,7 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
 
   $VERBOSE                 = true && $wgAllowVerbose;   // $VERBOSE = false && $wgAllowVerbose;
 
-  $startTime   = microtime(true);
-
+  $startTime               = microtime(true);
   $parserPreamble = "";
   if (property_exists($parser, 'storePreamble')) { $parserPreamble = $parser->storePreamble;}
   // self::debugLog ("STOREDPREAMBLE: " . $parserPreamble. "\n"); 
@@ -103,6 +102,8 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
   // TODO: chance for optimization: if file already exists we might reuse it - curently we do not !
  
   $hash        = TeXGenerator::generateTex ($in, $tag, $mode, $ar, $texSource, false, $parserPreamble);      // generate file $hash_pc_pdflatex.tex and return a hash of raw LaTeX source located in Mediawiki
+
+
 
   // the result of lazyRender might be cached, the key is the $hash of the TeX source
   $cRet = TeXCache::fetch ($hash, $cFlag, $startTime);
@@ -134,13 +135,24 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
 
       // throw new Exception ("THIS is a test for exception handling");  // just for testing exception handling
 
-      /** LATEX to PDF production step **/
-      $timePDF = microtime ();
+
+
+
+
+      /**** LATEX to PDF production step **/
+      $timePDF = microtime (true);                                                  // true: float seconds; without it microtime returns a string "msec sec" which cannot be subtracted
+
+      // determine necessary number of runs
+      $numRuns = 1;
+      // minted v3+ highlights within a single run, so it needs no second run
+
       $softError = "";
       if ($VERBOSE) {self::debugLog ("lazyRender LATEX2PDF phase for $hash... ") ;}
-      if ( !file_exists (constant("CACHE_PATH") . $hash . "_{$modeString}.pdf" ) ) {                        //  *** CASE 1: PDF file does not exist: make PDF and pick up error status from function
+      if ( !file_exists (constant("CACHE_PATH") . $hash . "_{$modeString}.pdf" ) ) {   //  *** CASE 1: PDF file does not exist: make PDF and pick up error status from function
         if ($VERBOSE) {self::debugLog ( "lazyRender: CASE 1: did not find file " . constant("CACHE_PATH") . $hash . "_{$modeString}.pdf, starting TeX2PDF processing for hash= " . $hash. "\n");}
-        $softError =  self::Tex2Pdf ($hash, "_{$modeString}", "lazyrender") ;
+
+        $softError =  self::Tex2Pdf ($hash, "_{$modeString}", "lazyrender", 15, $numRuns) ;
+
         if ($VERBOSE) {self::debugLog ( "TeX2PDF processing for hash=$hash returned error status: ($softError) \n" );}
         if ( !file_exists (constant("CACHE_PATH") . $hash . "_{$modeString}.pdf" ) ) {
           if ($VERBOSE) {self::debugLog ( "After TeX2PDF processing for hash=$hash but cannot find a PDF file\n" );}
@@ -148,20 +160,21 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
         }
         else { if ($VERBOSE) {self::debugLog ( "After TeX2PDF processing for hash=$hash I found the PDF file\n" );} }
       }
-      else {                                                                                   //  *** CASE 2: PDF file exists already: pick up error status from error marker file
+      else {                                                                                           //  *** CASE 2: PDF file exists already: pick up error status from error marker file
         if ($VERBOSE) {self::debugLog ( "lazyRender: CASE 2: found PDF file for $hash on disc, picking up old error status from marker file \n" ); }
         // still need to pick up error information from the last run, since the error might not have been fixed by the user, so we still must display it
-        $softError = file_get_contents ( $mrkFileName );
-        if ( ( $softError = file_get_contents ( $mrkFileName ) ) === false) { throw new ErrorException ("lazyRender: Could not find error marker file " . constant("CACHE_PATH") . $hash. "_{$modeString}.mrk"); }
+        if ( ( $softError = @file_get_contents ( $mrkFileName ) ) === false) { throw new ErrorException ("lazyRender: Could not find error marker file " . constant("CACHE_PATH") . $hash. "_{$modeString}.mrk"); }
       }
-      //$timePDF = microtime () - $timePDF; 
+      $timePDF = microtime (true) - $timePDF;
       // self::debugLog ("lazyRender: LATEX2PDF phase took $timePDF [sec] \n");
 
-      /** PDF to PNG and HTML production step  **/
+
+      /**** PDF to PNG and HTML production step  **/
       // We need a width and height in the img tag to assist the browser to a more smooth and flicker-less reflow.
       // The width MUST be equal to the width of the image (or else the browser must rescale the image, which BLURS the image and takes TIME)
       
-      $imgExists = file_exists ($finalImgPath);  $annoExists = file_exists ($annotationPath);
+      $imgExists  = file_exists ($finalImgPath);  
+      $annoExists = file_exists ($annotationPath);
       if ( !$imgExists || !$annoExists ) {  // FILES do not both exist
         if ($VERBOSE) { self::debugLog ("lazyRender: missing ". ($imgExists ? " " : $finalImgPath ) . " " . ($annoExists ? " " : $annotationPath ). " calling the processor...\n"); }
 
@@ -196,6 +209,8 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
         }
         self::debugLog ("lazyRender: size found $width $height");
       }
+
+
 
       /** BUILD IMG TAG **/
       $naming = ( array_key_exists ("n", $ar) ? "data-name='".htmlspecialchars ($ar["n"], ENT_QUOTES)."' " : "");             // prepare a data-name attribute for the image
@@ -521,6 +536,7 @@ public static function executor ( string $cmd, &$output, &$error, $verbose=false
  * $note      debug identifier, printed into log if requested
  * $timeout   maximal runtime of the command
  *            if -1 : do not impose any runtime limit
+ * $numRuns   Number of processor runs requested, default 1 but could be more for minted, references, bibtex and similar stuff
  *
  *
  *  ERROR CONDITIONS:
@@ -534,22 +550,25 @@ public static function executor ( string $cmd, &$output, &$error, $verbose=false
  *    127 command not found
  *    string  error text as the error parser felt fit to parse it
  */
-private static function Tex2Pdf ($hash, $inFinal, $note, $timeout=15) {
+private static function Tex2Pdf ($hash, $inFinal, $note, $timeout=15, int $numRuns=1) {
   $VERBOSE     = true;  
   $CACHE_PATH  = CACHE_PATH;
   $texFileName = "$CACHE_PATH$hash$inFinal.tex";
   $mrkFileName = "$CACHE_PATH$hash$inFinal.mrk";
 
-  ASSERT_FILE ($texFileName); 
-
-  $cmd = PDFLATEX_COMMAND . " --shell-escape -output-directory=$CACHE_PATH $texFileName"; 
-
-  if ($timeout > 0) {$cmd = '/bin/bash -c "ulimit -t 2;' . $cmd . '"';}  // add a timeout
+  ASSERT_FILE ($texFileName);                                                               // ensures the TeX source file exists
+  $cmd = PDFLATEX_COMMAND . " --shell-escape -output-directory=$CACHE_PATH $texFileName";          
 
   if ($VERBOSE) { self::debugLog ("Tex2Pdf started ($note) for $hash$inFinal, command is: $cmd \n");}   
   // $retval = DanteUtil::executor ( $cmd, $output, $error, [TeXProcessor::class, "debugLog"] );
 
-  $retval = DanteUtil::executor ( $cmd, $output, $error, null );
+  // run the TeX processor $numRuns times
+  $numRuns = min (5, max (1, $numRuns));                                                    // clamp number of runs to 1 ... 5
+  for ($run = 1; $run <= $numRuns; $run++) {
+    $retval = DanteUtil::executor ( $cmd, $output, $error, null, $duration, $timeout );
+    if ($VERBOSE) { self::debugLog ("Tex2Pdf run $run of $numRuns for $hash$inFinal returned $retval after $duration s\n"); }
+    if ($retval != 0) { break; }
+  }
 
   //  127   a fundamental error such as command not found
   //   1   a small tex error, but might be worth mentioning

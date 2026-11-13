@@ -95,6 +95,7 @@ class Parsifal {                                  // glue class of the extension
   /**
    * Tag hook for the LaTeX tags listed in TAGS (amsmath, tex, beamer): renders the tag content via TeXProcessor::lazyRender.
    *
+   *
    * @param string      $tag    name of the tag, selects the precompiled format
    * @param string|null $in     content between the opening and the closing tag
    * @param array       $ar     attributes of the tag
