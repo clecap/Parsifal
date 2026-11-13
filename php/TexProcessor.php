@@ -127,7 +127,7 @@ public static function lazyRender ($in, $ar, $tag, $parser, $frame) {
     try {  // BEGIN EXCEPTION PROTECTED AREA
 
       $property = $parser->getOutput()->getPageProperty ("Parsifals");        // page should get a property indicating the number of parsifal controlled areas
-      $parser->getOutput()->setPageProperty ("Parsifals", ( is_numeric ($property) ? $property+1: 1 ));
+      $parser->getOutput()->setNumericPageProperty ("Parsifals", ( is_numeric ($property) ? $property+1: 1 ));  // numeric variant, since setPageProperty with non-string value is deprecated since MW 1.42
 
       $timestamp = date_format( new DateTime(), 'd-m-Y H:i:s');               // want a timestamp in the img tag on when the page was translated for debugging purposes
       self::ensureEnvironment ();
