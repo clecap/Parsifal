@@ -108,10 +108,9 @@ class Parsifal {                                  // glue class of the extension
     // TODO: the compile mor ethan once mechanism is completely broken here. It should not call lazyrender twice but should, inside of the Tex2PDF funciton call the tex compiler twice
     if ( array_key_exists ("double", $ar) ) {
       $ar["number-of-instance"] = "1";
-      //$res1 = TeXProcessor::lazyRender ($in, $ar, "amsmath", $parser, $frame);
       $ar["number-of-instance"] = "2";
-      //$res2 = TeXProcessor::lazyRender ($in, $ar, "amsmath", $parser, $frame);
-      return $res1.$res2;
+      $res = TeXProcessor::lazyRender ($in, $ar, "amsmath", $parser, $frame);
+      return $res;
     }
 
     // normal case: render the content with the format named by the tag
