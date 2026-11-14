@@ -27,9 +27,6 @@ html #previewFlag a::after {content: ' OFF';}
 html.usingCodeMirror #useCodeMirror a::after {content: ' CODE MIRROR' !important;}
 html #useCodeMirror a::after {content: ' NORMAL';}
 
-
-
-
 /* Better markup for the link in UI */
 /*
 html.sizeLimit #limitSize a::after {content: ' ON' !important;}
@@ -116,14 +113,11 @@ html .vector-body h6  { font-size: 1em;}
 #new-edit-container {display:flex; height:100%;}
 
 #textarea-wrapper {box-sizing: border-box;}
+#textarea-wrapper {position:relative; display:inline-block; box-sizing: border-box;}
 
 
 
 /* NOTE: We want to have the scrollbar all the time or a resizing of the editor makes scrollbar appear / diosappear and breals the layout */
-
-#inline-edit-preview-container.latex-error  { --placeholder:0; }     /* class marking in case of a latex error */
-#inline-edit-preview-container.latex-ok     { --placeholder:0; }     /* class marking in case of no latex error */
-
 
 /* markings of the image - are we in error, preliminary, final etc */  
 img[data-version="prelim"] {border: 2px solid blue !important;}
@@ -138,36 +132,12 @@ img[data-version="final"]  {border: 2px solid transparent !important;}
 /* #wpTextbox1  {white-space:nowrap;}   */
 /* quick fix for an artifact thos produced in the normal editing process, see isue #35 in github clecap/Parsifal */
 
-/* The IMG image elements used for previewing */
-.inline-edit-preview-img                    {margin:0px; padding:0px;border-bottom:1px dotted blue; box-sizing:border-box;
-  
-}
-
-body.shift-down  .inline-edit-preview-img   {border:4px solid red;}
 
 /* The TEXT areas in the preview */
 .preview-text-portion *     {padding:0px; margin:0px; box-sizing:border-box; font-family:monospace; background-color: lightgray; width:100%;}
 .preview-text-portion div   {font-size:14pt; background-color:#E8E8E8; font-weight:bold;}     /* for headings */
 .preview-text-portion pre   {font-size:10pt; background-color:#E8E8E8; font-weight:normal;}   /*  for other text */
 .chunk-selected             {border:4px solid gold;}
-
-
-#textarea-wrapper {position:relative; display:inline-block; box-sizing: border-box;}
-
-
-
-
-/* not included - why ??? */
-#pullTab {height: 0px; width: 0px; 
-  border-top: 20px solid red; border-left: 20px solid transparent; border-right: 20px solid transparent;
-  -webkit-transform: rotate(-45deg); 
-  position: absolute; bottom: 0px; right: -10px; pointer-events: none; z-index: 2;
-
-}
-
-#pullTab.pull-disabled {border-color:transparent;}
-
-.tex-render-result {display:inline-block;margin-top:0.3em;position:relative;}
 
 /* for the container of the annotation layer */
 /* note: this element has no width or height or size, it merely carries and positions the annotations   transform:scale(0.940);   transform:scale(1.540);*/
@@ -182,19 +152,21 @@ body.shift-down  .inline-edit-preview-img   {border:4px solid red;}
 
 .logWrap  {display:none;}
 html.editHandles  .logWrap {display:block;}
-h6 {display:none;}
-html.editHandles h6 {display:block;}
-
-
 .logWrap:hover    {opacity:1;}
-
 .logWrap {opacity:0.33;}
 
 /* defined in Decorator.php. */
 .logWrap    {position:absolute;top:-10px; right:0px; font-size:14pt;}                   
 
+
+h6 {display:none;}
+html.editHandles h6 {display:block;}
+
+
+
 .errorWrap {background:white;}
 .errorWrap  {position:absolute;top:0px; right:0px;}        /* wrapper for error decoration */
+
 .miniError  {font-size:small; width:500px;display:inline-block; color:red !important;text-align:right;}               /* mini error message and link to iframe */
 .winError   {font-size:14pt; width:500px; display:inline-block;text-align:right; color:red !important;}                                         /* link to window */
 
@@ -233,16 +205,12 @@ html.editHandles h6 {display:block;}
 /* additional class for collapse buttons which have been toggled to the open state  */
 .collapseButtonToggled {border:3px solid red !important; text-transform: uppercase;}
 
-.hs-block {display:block; clear:both; float:none;}
-
 /* .collapseResult: class marking the div which is wrapping the collapsible portion */
 
-.collapseResult {  display:none; z-index:3; clear:left; }
+.collapseResult         {  display:none; z-index:3; clear:left; }
+.collapseResult         { margin:3pt 0pt 12pt 0pt;}
 
-.collapseResult       { margin:3pt 0pt 12pt 0pt;}
-
-div.collapseButton   {margin:0pt 0pt 8pt 0pt;}
-
+div.collapseButton      {margin:0pt 0pt 8pt 0pt;}
 div.collapseButton > a {text-decoration:none;}
 
 

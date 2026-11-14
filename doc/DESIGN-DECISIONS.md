@@ -65,3 +65,32 @@ References:
 
 
 
+
+
+
+
+
+
+## SECURITY ASPECTS
+
+1 tmp should contain a file .htaccess with content php_flag engine off
+1 
+
+## Font Generation
+
+Note: The following applies when you have a standard vanilla TUG/CTAN TeXLive installation.
+
+* Depending on the latex installation and on the fonts used in the documents, TeX may find that some fonts are missing.
+* Information on missing fonts will be found in the extensions/Parsifal/endpoints directory in file missfont.log
+* The shell commands in the file missfont.log should be executed to make the respective fontSize
+* The fonts then will be available in the home directory of the user making the fonts and there in directory .texlive2021 or similar.
+
+
+
+We recommend EXT4 as file system (one reason being [file system performance](https://serverfault.com/questions/98235/how-many-files-in-a-directory-is-too-many-downloading-data-from-net)).
+
+
+
+
+
+NEED to limit the -shell-escape flag !!!

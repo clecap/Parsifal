@@ -185,22 +185,29 @@ function initAccordion () {
 }
 
 /**
- * Validates the query-string parameter and returns it as a safe same-origin URL, or null.
- * @param {string} raw - Raw query string without the leading "?".
- * @returns {string|null} Normalized absolute URL of the cache file base, or null if rejected.
+ * Validates the query-string parameter and returns a URL for the cache file base, or null.
+ * The returned URL is never the user input itself: it is rebuilt from a fixed prefix (the Parsifal cache directory) plus a file name
+ * restricted to the form <hash>_<mode>, so neither host nor directory can be chosen by the caller (prevents client-side request forgery).
+ * @param {string} raw - Raw query string without the leading "?", normally an absolute URL as produced by TexProcessor.php.
+ * @returns {string|null} Relative URL "../../..<CACHE_URL><hash>_<mode>" of the cache file base, or null if rejected.
  */
 function sanitizeName (raw) {
+  // fail closed if the cache location was not delivered by config.js.php or does not have the expected form
+  if (typeof CACHE_URL !== "string" || !/^\/[A-Za-z0-9_\/-]*\/$/.test (CACHE_URL)) { return null; }
   // parse relative to this page; unparsable input is rejected
   let url;
   try { url = new URL (raw, window.location.href); } catch (e) { return null; }
-  // same origin only: rejects javascript:, data: (origin "null") and foreign hosts
-  if (url.origin !== window.location.origin) { return null; }
-  // fail closed if the cache location was not delivered by config.js.php
-  if (typeof CACHE_URL !== "string" || CACHE_URL === "") { return null; }
-  // only files in the Parsifal cache with the form <hash>_<mode>; CACHE_URL is regex-escaped; no query or fragment
-  const cacheRegex = new RegExp (CACHE_URL.replace (/[.*+?^${}()|[\]\\]/g, "\\$&") + "[A-Za-z0-9]+_[A-Za-z0-9_-]+$");
-  if (!cacheRegex.test (url.pathname) || url.search || url.hash) { return null; }
-  return url.href;
+  // same origin only, no query or fragment: rejects javascript:, data: (origin "null") and foreign hosts
+  if (url.origin !== window.location.origin || url.search || url.hash) { return null; }
+  // fixed prefix: this page is <scriptPath>/extensions/Parsifal/html/texLog.html, so ../../.. is <scriptPath>/
+  const prefix         = "../../.." + CACHE_URL;
+  const expectedPrefix = new URL (prefix, window.location.href).pathname;
+  // the path must be exactly the cache directory followed by a plain file name without slashes
+  if (!url.pathname.startsWith (expectedPrefix)) { return null; }
+  const match = /^([A-Za-z0-9]+_[A-Za-z0-9_-]+)$/.exec (url.pathname.substring (expectedPrefix.length));
+  if (!match) { return null; }
+  // rebuild from the constant prefix and the validated file name only
+  return prefix + match[1];
 }
 
 // validate the parameter once, then use only the validated value

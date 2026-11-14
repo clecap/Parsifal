@@ -15,8 +15,7 @@
 // called when user clicks on a collapsing button
 window.toggleNext = function toggleNext (e) { 
   console.log ("parsifal: toggleNext", e);
-  if (e.target.tagName == "A") {button = e.target.parentNode;} else {button = e.target;}
-
+  let button = (e.target.tagName == "A" ? e.target.parentNode : e.target);
   const ele    = button.nextSibling;   
   $(ele).slideToggle(300);                               // slide open  // TODO: put to more prominent and thus better visible and adjustable place 
 
@@ -73,15 +72,14 @@ const fixDistances = () => {
     // console.log (element, element.dataset.strut);
     let ele = element; 
     while (ele && ele.classList && !ele.classList.contains ("parsifalContainer")) { 
-     if (ele && ele.classList && ele.classList.contains ("collapseResult")) { break;}
+     if (ele.classList.contains ("collapseResult")) { break;}
      ele = ele.previousElementSibling;}
     
     if (ele && ele.classList && ele.classList.contains ("parsifalContainer") ) {ele.classList.add (element.dataset.strut);}
     element.parentNode.removeChild (element);
   });
 
-  parsis = document.querySelectorAll (".parsifal");
-  //console.warn ("parsis remaining are ", parsis);
+  // parsis = document.querySelectorAll (".parsifal");  console.warn ("parsis remaining are ", parsis);
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -189,17 +187,18 @@ const patchParsifalEditLinks = (sc) => {
 
   pc.addEventListener ("mouseenter", (e) => { if (e.shiftKey) {pc.style.outline = "1px dotted grey";} } );
   pc.addEventListener ("mouseleave", (e) => { pc.style.outline = ""; } );
-  return;
 
-    var hElement = pc.previousSibling;
-    while ( hElement && !["H1","H2","H3","H4","H5","H6"].includes (hElement.tagName)) { hElement = hElement.previousSibling;}
+  return; // TODO: check this
+
+//    var hElement = pc.previousSibling;
+//    while ( hElement && !["H1","H2","H3","H4","H5","H6"].includes (hElement.tagName)) { hElement = hElement.previousSibling;}
     //console.info ("h-element", hElement);
-    var err = pc.querySelector (".errorWrap");
+//    var err = pc.querySelector (".errorWrap");
     //console.info ("err", err);
-    var es = hElement.querySelector (".mw-editsection");
+//    var es = hElement.querySelector (".mw-editsection");
     //console.info ("editsection", es);
-    es.parentNode.removeChild (es);
-    err.appendChild (es);
+//    es.parentNode.removeChild (es);
+//    err.appendChild (es);
 };
 
 

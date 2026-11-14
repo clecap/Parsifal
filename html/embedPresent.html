@@ -80,16 +80,16 @@ window.doSubmit = (e) => {
 <div id="type">
   <input type="radio" name="type" value="Article"     id="tArticle">     <label for="tArticle">Journal</label>
   <input type="radio" name="type" value="Book"        id="tBook">        <label for="tBook">Book</label>
-  <input type="radio" name="type" value="Book"        id="tBook">        <label for="tBooklet">Booklet</label> 
+  <input type="radio" name="type" value="Book"        id="tBooklet">     <label for="tBooklet">Booklet</label> 
   <input type="radio" name="type" value="Conference"  id="tConference">  <label for="tConference" title="Reviewed conference contribution">Proc+</label>   
   <input type="radio" name="type" value="Conference"  id="tConference">  <label for="tConference" title="Reviewed conference contribution">Proc-</label>
   <input type="radio" name="type" value="PhD"         id="tPhD">         <label for="tPhD" title="PhD Thesis">PhD</label>
   <input type="radio" name="type" value="Thesis"      id="tThesis">      <label for="tThesis" title="Master, Diploma or Student Thesis">Thesis</label>
   <input type="radio" name="type" value="Script"      id="tScript">      <label for="tScript" title="Lecture material">Script</label>  
   <input type="radio" name="type" value="Preprint"    id="tPreprint">    <label for="tPreprint">Preprint</label>
-  <input type="radio" name="type" value="Preprint"    id="tPreprint">    <label for="tPreprint" title="A technical manual">Manual</label>  
-  <input type="radio" name="type" value="Preprint"    id="tPreprint">    <label for="tReport" title="A technical report or white paper">Report</label>  
-  <input type="radio" name="type" value="Preprint"    id="tPreprint">    <label for="tPreprint" title="A webpage, blog page or similar">Webpage</label>  
+  <input type="radio" name="type" value="Preprint"    id="tManual">      <label for="tManual" title="A technical manual">Manual</label>  
+  <input type="radio" name="type" value="Preprint"    id="tReport">      <label for="tReport" title="A technical report or white paper">Report</label>  
+  <input type="radio" name="type" value="Preprint"    id="tWebpage">    <label for="tWebpage" title="A webpage, blog page or similar">Webpage</label>  
 </div>
 
 <div>
@@ -130,23 +130,11 @@ Source of citation (imported wiki)
 <input type="submit">
 </form>
 
-
-
-
-
-
 <script>
 const form = document.getElementById('myForm');
 form.addEventListener('submit', doSubmit);
 
 </script>
-
-
-
-
-
-
-
 
 </body>
 </html>
