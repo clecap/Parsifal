@@ -61,7 +61,6 @@ window.PRT = PRT = (() => {
 // what is our load path? necessary to have in the mediawiki and endpoint situations always the correct path available
 let myPath=document.currentScript.src;
 let lastIndex = myPath.lastIndexOf ("/");
-myPath = myPath.substring (0,lastIndex);
 
 
 
