@@ -7,7 +7,7 @@
       PC_PDFLATEX   combine with a precompiled version of the template to be used in the pdflatex processor
       LATEX         combine with a template but without assuming precompilation, to be used with latex processor
       PDFLATEX      combine with a template but without assuming precompilation, to be used with pdflatex processor
-      RAW           do not combine with any template at all, use the raw user input
+      RAW           do not combine with any precompile or not precompiled template at all, use the raw user input
  * 
  */
 enum TeXCompilationMode: string {

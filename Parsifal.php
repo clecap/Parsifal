@@ -59,7 +59,9 @@ class Parsifal {                                  // glue class of the extension
     $text = preg_replace('/<\/amsmath>[ ]*\n[ ]*\n[ ]\n[ ]*</',      '</amsmath><div class="parsifal" data-strut="twoline"></div><', $text);
 
     // remove blanks and newlines after a preamble declaration, as mediawiki parser would generate spaces, <p> and <br> if we do not do this
-    $text = preg_replace('/<\/preamble>\s+/',    '</preamble>', $text);
+    // CAVE: keep one newline if there was one: this hook runs before headings (= ... =), lists etc. are recognized, and these must start at the beginning of a line
+    $text = preg_replace('/<\/preamble>[ \t]*\r?\n\s*/', "</preamble>\n", $text);   // whitespace containing a line break: collapse to exactly one newline
+    $text = preg_replace('/<\/preamble>[ \t]+/',          '</preamble>',   $text);   // blanks only (preamble inside a line): remove
 
    if ($VERBOSE) {TeXProcessor::debugLog( "-------- Parsifal::onParserBeforeInternalParse AFTER REPLACE".$text.  " \n");}
     return true;
@@ -109,7 +111,7 @@ class Parsifal {                                  // glue class of the extension
     if ( array_key_exists ("double", $ar) ) {
       $ar["number-of-instance"] = "1";
       $ar["number-of-instance"] = "2";
-      $res = TeXProcessor::lazyRender ($in, $ar, "amsmath", $parser, $frame);
+      $res = TeXProcessor::lazyRender ($in, $ar, $tag, $parser, $frame);
       return $res;
     }
 
@@ -220,7 +222,9 @@ public static function onOutputPageBeforeHTML( OutputPage &$out, &$text ) {
         file_put_contents( "$PDFLATEX_FORMAT_PATH$shortName.tex", $templatePrecompileSrc, LOCK_EX);        
         
         TeXProcessor::cleanUpAll ();                                       // cleanup all files since a fresh template requires regeneration anyhow
-        // TODO: A---------------------------- need to register dependencies on the templates 
+        TeXCache::clear ();                                                // drop the HTML cached in APCu by lazyRender, it refers to the old rendering
+        Parsifal::purgeAllParserCaches ();                                 // pages must be re-parsed, otherwise the parser cache keeps serving the old HTML without calling lazyRender
+
 
         if ($VERBOSE) {TeXProcessor::debugLog("Parsifal::reconstructFormat: will now invoke precompiler on $shortName \n");}          
         $inError = TeXProcessor::precompile ($shortName);
@@ -236,6 +240,26 @@ public static function onOutputPageBeforeHTML( OutputPage &$out, &$text ) {
   }
 
 
+
+
+
+  /**
+   * Invalidate the parser cache of all pages by setting page_touched of every page to now.
+   * The parser cache treats every entry older than page_touched as expired, independently of where the parser cache is stored.
+   *
+   * @return void
+   */
+  public static function purgeAllParserCaches () {
+    // touch all rows of the page table in one query
+    $dbw = MediaWikiServices::getInstance()->getConnectionProvider()->getPrimaryDatabase();
+    $dbw->newUpdateQueryBuilder()
+      ->update ('page')
+      ->set    ( ['page_touched' => $dbw->timestamp()] )
+      ->where  ( \Wikimedia\Rdbms\IDatabase::ALL_ROWS )
+      ->caller ( __METHOD__ )
+      ->execute ();
+    TeXProcessor::debugLog ("Parsifal::purgeAllParserCaches: touched " . $dbw->affectedRows() . " pages \n");
+  }
 
 
 

@@ -9,6 +9,7 @@ class TeXCache {
   const TTL          = 1000;    // lifetime of a cache entry in seconds
   const VERBOSE      = false;   // write cache hit and miss info into the log file
   const VERBOSE_FULL = false;   // write cache details on every cache access into the log file - CAVE: immense amount of log information
+  const PREFIX       = "parsifal-texcache:";   // prefix of all APCu keys of this cache; APCu is shared with MediaWiki ($wgMainCacheType = CACHE_ACCEL), so clear() must only touch keys with this prefix
 
   /**
    * Look up the HTML cached under a cache key.
@@ -24,7 +25,7 @@ class TeXCache {
     if (!self::ENABLED) { return false; }
 
     // look up the entry and log hit or miss
-    $cRet = apcu_fetch ($key, $found);
+    $cRet = apcu_fetch (self::PREFIX . $key, $found);
     if ($found) {
       $totalDuration = ($startTime === null ? "(unknown)" : microtime (true) - $startTime);
       if (self::VERBOSE) { TeXProcessor::debugLog ("lazyRender: cache HIT for $key, function call returning after $totalDuration \n"); }
@@ -48,9 +49,26 @@ class TeXCache {
     if (!self::ENABLED) { return false; }
 
     // write the entry and log the result
-    $cRet = apcu_store ($key, $html, self::TTL);
+    $cRet = apcu_store (self::PREFIX . $key, $html, self::TTL);
     if (self::VERBOSE) { TeXProcessor::debugLog ("lazyRenderer: Wrote result for $key into APCU cache, result was $cRet \n"); }
     self::logCacheInfo ();
+    return $cRet;
+  }
+
+  /**
+   * Remove all entries of this cache from APCu, leaving the APCu entries of MediaWiki (object cache, sessions, ...) untouched.
+   *
+   * @return bool  true if all entries were deleted (or the cache is disabled or APCu is not available), false otherwise
+   */
+  public static function clear () {
+    // nothing to clear when disabled or without APCu
+    if (!self::ENABLED || !class_exists ('APCUIterator')) { return true; }
+
+    // delete all keys carrying our prefix in one go
+    $iterator = new APCUIterator ('/^' . preg_quote (self::PREFIX, '/') . '/', APC_ITER_KEY);
+    $count    = $iterator->getTotalCount();
+    $cRet     = apcu_delete ($iterator);
+    if (self::VERBOSE) { TeXProcessor::debugLog ("TeXCache::clear: deleting $count entries, result was " . ($cRet ? "true" : "false") . " \n"); }
     return $cRet;
   }
 

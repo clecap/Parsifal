@@ -6,6 +6,10 @@ The choice of the XML tag affects the LaTeX format.
 
 `<block>`  implements a simple fixed width block 
  
+
+
+
+ 
 ## XML-Attributes
 
 The XML attributes of the tags may be used to invoke additional effects. The key of the attribute should be specified
@@ -98,10 +102,6 @@ Forces an outline on the image. Helpful for debugging and adjusting distances.
 * ```double```````
 * ocg
 * rerun
-
-
-
-
 
 
 

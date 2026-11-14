@@ -30,6 +30,11 @@ public static function generateEndPreambleStuff ($ar, $tag) {
   else if ( array_key_exists ( "en",    $ar ) )  { $stuff = $stuff."\\usepackage[shorthands=off,english]{babel}";           }
   else                                           { $stuff = $stuff."\\usepackage[shorthands=off,english]{babel}";           }
 
+
+
+
+
+
   // MINTED
   $light = array ("manny", "rrt", "perldoc", "borland", "colorful", "murphy", "vs", "trac", "tango", "autumn", "bw", "emacs", "pastie", "friendly");
   $dark  = array ( "fruity", "vim", "native", "monokai");
@@ -39,7 +44,6 @@ public static function generateEndPreambleStuff ($ar, $tag) {
 
   if ( array_key_exists ("minted", $ar) ) {                                                       // if we have a minted attribute, include minted stuff
   //    if ( in_array ($ar["minted"], $light) ) { $style=$ar["minted"]; } else { $style = "emacs";}   // check if style is known. If it is not, use emacs as default
-  ##### $stuff = $stuff . "\\usepackage[outputdir=".CACHE_PATH.",newfloat=true,cache]{minted}\\usemintedstyle{" .$style. "}\\initializeMinted"; 
     if (isset($ar['minted']) && is_string($ar['minted']) && trim($ar['minted']) !== '') { $mintedStyle = $ar['minted']; }
 
     $mintedInit = "";
@@ -50,8 +54,8 @@ public static function generateEndPreambleStuff ($ar, $tag) {
     // no outputdir option: minted v3+ rejects it (error, exit code 1) and detects the output directory itself from -output-directory (TeX Live 2024+)
     // highlightmode=immediate: the default fastfirst mode typesets red <MINTED> placeholders when no cache index exists yet and highlights only at \end{document}, which would require a second run
     $stuff = $stuff . "\\usepackage[newfloat=true,cache,highlightmode=immediate]{minted}\\usemintedstyle{".$mintedStyle."}".$mintedInit;
-
   }
+
 
   // PREAMBLE
   // array key    "pa" if present and has contents
@@ -93,6 +97,7 @@ public static function generateEndPreambleStuff ($ar, $tag) {
 }
 EOD;
 
+
   // dynamically inject the definitions of \dref and of \durl, since we here (in PHP) have the required paths accessible more easily than from LaTeX
   $urlStuff  = "\\newcommand{\dref}[2]{ \\StrSubstitute{#1}{ }{_}[\\temp]\\href{".   $wgServer.$wgScriptPath . "/index.php/"."\\temp}{#2}}";
   $urlStuff2 = "\\newcommand{\durl}[1]{ \\StrSubstitute{#1}{ }{_}[\\temp]\\href{".   $wgServer.$wgScriptPath . "/index.php/"."\\temp}{#1}}";
@@ -110,12 +115,11 @@ EOD;
 
 
 
-/* generate stuff to be placed after the preamble (ie. this starts with begin{document})
- * and which prepares the template substitution process
+/* generate tex code to be placed after the preamble (ie. after \begin{document}) but before the true content
+ * This code portion also conrtols the substitution process
  */
 public static function generateBeforeContentStuff ($ar, $tag) {
-#region
-  $stuff    = "";
+  $stuff    = "";  // collects what we are going to return 
   $variants = "";
   
   // implement size related attributes
@@ -139,38 +143,36 @@ public static function generateBeforeContentStuff ($ar, $tag) {
   # CAVE: confusion between tex { } and php { } should be avoided !
   // minipage is used to hold the page width stable. without it we also get some indentation artifacts with enumitem.
 
-
   switch ($tag) {
     case "amsmath":   $stuff = $config."\\begin{document}"."\\begin{minipage}[]{".$size."}\\myInitialize\\relax ".MAGIC_LINE."\\end{minipage}\\end{document}"; break;
     case "tex":       $stuff = MAGIC_LINE; break;
     case "beamer":    $stuff = "\\begin{document} ".MAGIC_LINE."\\end{document}"; break;
   }
+
   $stuff = $variants . $stuff;
   return $stuff;
-  #endregion
+
 }
 
 
 
-// TODO: below we currently generate the tex file every time even if ti would have existed. that could be optimized away possibly...
+// TODO: below we currently generate the tex file every time even if it would have existed. that could be optimized away possibly...
 
 /** Functions:
  *    (1) Determine hash code of content 
  *    (2) If no TeX file is there, build one
+ *
  *    $rawContent          string containing latex content
- *    $tag                 string with tagname of xml tag /
- *    $mode                the TeXCompilationMode controls how we compose the tex file to be compiled
+ *    $tag                 string with tagname of the xml tag
+ *    $mode                the TeXCompilationMode controlling how we compose the tex file to be compiled
                               pc_latex
                               pc_pdflatex
 
  *    $ar                  array of key => value form with the attributes
- *    $cookedContent       if  null   do not copy cooked content into the variable, only write it into a file
- *                         if  FILE   copy cooked content into the variable AND write it into a file
- *                         if  VAR    copy cooked content into the variable
- *    $fc                  if true:   add a comment requesting the specific precompiled format file
+ *    $fc                 if true:   add a comment requesting the specific precompiled format file
  *                            false:  do not add comment, assume that we are using a command line format specification or not format at all 
  */
-public static function generateTex ( string $rawContent, string $tag, TeXCompilationMode $mode, $ar = array(), string &$cookedContent = null, $fc = true, $parserPreamble="" ) : string {
+public static function generateTex ( string $rawContent, string $tag, TeXCompilationMode $mode, $ar = array(), $fc = true, $parserPreamble="" ) : string {
   $VERBOSE               = false;
   $CACHE_PATH            = CACHE_PATH;
   $LATEX_FORMAT_PATH     = LATEX_FORMAT_PATH;
@@ -182,65 +184,70 @@ public static function generateTex ( string $rawContent, string $tag, TeXCompila
   ksort($ar);                                                      // sort array of keys, in place, so that the hash becomes independent of the sequence 
   $stringAr = print_r ($ar, true);                         // go from php array to a full string representation
   $hash     = md5 ($tag.$stringAr.$rawContent);                   // derive a unique file name - need dependency on tag, content and attributes as all of this has impact on looks.
-
-
-// TODO: CAVE: we should not do the format reconstruction here in this place. It should be part of a startup process of the entire call
-//       because we could otherwise get race conditions on multiple runs !
-// TODO: CAVE: maybe this is done dynamically so we cannot !
-
+  // the <preamble> of the page affects the looks as well; only mixed in when present, so hashes (and cached renders) of snippets without preamble stay unchanged
+  if ($parserPreamble !== "") { $hash = md5 ($hash . "\0preamble\0" . $parserPreamble); }
 
   switch ($mode) {
-    case TeXCompilationMode::PC_LATEX:                  // we use a precompilation made for the latex processor     
+    case TeXCompilationMode::PC_LATEX:                                          // we use a precompilation made for the latex processor     
       $fmt="$LATEX_FORMAT_PATH$tag";     
       $resultFile = "$CACHE_PATH{$hash}_".$mode->value.".tex";  
       if (!file_exists ("$fmt.fmt")) { Parsifal::reconstructFormat ("ParsifalTemplate/$tag");}
       ASSERT_FILE ("$fmt.fmt");    
-   
       $endPreambleStuff   = TeXGenerator::generateEndPreambleStuff ($ar, $tag) . $parserPreamble;
       $beforeContentStuff = TeXGenerator::generateBeforeContentStuff ($ar, $tag);
-      $template =  ($fc ? "%&$fmt\n" : "").$endPreambleStuff.$beforeContentStuff;    
+      $template =  ($fc ? "%&$fmt\n" : "").$endPreambleStuff.$beforeContentStuff;      // build the template
       break;
 
-    case TeXCompilationMode::PC_PDFLATEX:        // we use a precompilation made for the pdflatex processor
-      $fmt="$PDFLATEX_FORMAT_PATH$tag";  $resultFile = "$CACHE_PATH{$hash}_".$mode->value.".tex";  
+    case TeXCompilationMode::PC_PDFLATEX:                                       // we use a precompilation made for the pdflatex processor
+      $fmt        ="$PDFLATEX_FORMAT_PATH$tag";                         //  format file name  without extension .fmt  example:   /var/www/html/wiki-dir/extensions/Parsifal/config/../formats_pdflatex/amsmath
+      $resultFile = "$CACHE_PATH{$hash}_".$mode->value.".tex";
+   
       if (!file_exists ("$fmt.fmt")) { Parsifal::reconstructFormat ("ParsifalTemplate/$tag");}
-      ASSERT_FILE ("$fmt.fmt");    
+      ASSERT_FILE ("$fmt.fmt");
       $endPreambleStuff   = "%%% generateEndPreambleStuff\n " . TeXGenerator::generateEndPreambleStuff ($ar, $tag) . $parserPreamble;
       $beforeContentStuff = "%%% generateBeforecontentStuff\n " . TeXGenerator::generateBeforeContentStuff ($ar, $tag);
-//      $template = "\\documentclass{standalone}". TeXGenerator::generateBeforeContentStuff ($ar, $tag);
-//      $template =  ($fc ? "%&$fmt\n" : "%%%NOSO%%%").$endPreambleStuff.$beforeContentStuff;   
       $template =   "%&$fmt\n" .$endPreambleStuff.$beforeContentStuff;   
       break;
 
-    default:   // includes RAW, which is not implemented
+    case TeXCompilationMode::LATEX:     throw new Exception ("generateTex: not yet implemented mode {$mode->value}");
+
+    case TeXCompilationMode::PDFLATEX:  throw new Exception ("generateTex: not yet implemented mode {$mode->value}");
+
+    case TeXCompilationMode::RAW:
+      $template = "";                  // we do not have a template at all, we only use raw tex contents of the tag
+      $resultFile = "$CACHE_PATH{$hash}_".$mode->value.".tex";  
+      $fmt="EMPTY";
+      break;
+
+
+    default:  
       throw new Exception ("generateTex: received illegal mode {$mode->value}");
   }
 
-  if (strpos ($template, MAGIC_LINE) == FALSE)   {
-    $msg = "generateTex: could not find MAGIC_LINE in template file " . $templateFileName . "\nFor more information see logfile at " .LOG_PATH. "\n";
-    self::debugLog ($msg);
-    self::debugLog ("---------Template:\n" .$template. "\n-----END-----\nMAGIC_LINE IS:\n\n" . MAGIC_LINE . "\n\n");
-    throw new Exception ($msg); }  // check for MAGIC_LINE in template
-  $markerStart = "\\typeout{" . ERROR_PARSER_START . "}";  // form a marker which helps the error parser in the log file detect the beginning of the document
-  $markerEnd   = "\\typeout{" . ERROR_PARSER_END   . "}";  // form a marker which helps the error parser in the log file detect the beginning of the document
+
+  TeXProcessor::debugLog ("generateTex: found fmt=$fmt  resultFile=$resultFile \n");   
 
 
-  $text = str_replace ( MAGIC_LINE, $markerStart.$rawContent.$markerEnd, $template);     // replace the MAGIC_LINE by the current input; maximally one replacement
+  if ($template != "") { // we have a template: Inject document into the template
+    if (strpos ($template, MAGIC_LINE) == FALSE)   {
+      $msg = "generateTex: could not find MAGIC_LINE in template file " . $templateFileName . "\nFor more information see logfile at " .LOG_PATH. "\n";
+      self::debugLog ($msg);
+      self::debugLog ("---------Template:\n" .$template. "\n-----END-----\nMAGIC_LINE IS:\n\n" . MAGIC_LINE . "\n\n");
+      throw new Exception ($msg); 
+    }  // check for MAGIC_LINE in template
 
+    $markerStart = "\\typeout{" . ERROR_PARSER_START . "}";  // form a marker which helps the error parser in the log file detect the beginning of the document
+    $markerEnd   = "\\typeout{" . ERROR_PARSER_END   . "}";  // form a marker which helps the error parser in the log file detect the beginning of the document
 
-  switch ($cookedContent) {
-    case "FILE":   if ( $fileObject = fopen( $resultFile, 'w') ) { fwrite($fileObject, $text);  fclose($fileObject); } else { throw new Exception ("generateTex: error writing result file $resultFile " ); }; 
-    case "VAR":    $cookedContent = $text; break;
-    case null:     {if ( $fileObject = fopen( $resultFile, 'w') ) { fwrite($fileObject, $text);  fclose($fileObject); } else { throw new Exception ("generateTex: error writing result file $resultFile " ); }  break;}
-    default:       throw new Exception ("generateTex: cookedContent has illegal value $cookedContent");
+    $text = str_replace ( MAGIC_LINE, $markerStart.$rawContent.$markerEnd, $template);     // replace the MAGIC_LINE by the current input; maximally one replacement
   }
+  else {$text = $rawContent;}
+
+  // write the tex file
+  if ( $fileObject = fopen( $resultFile, 'w') ) { fwrite($fileObject, $text);  fclose($fileObject); } else { throw new Exception ("generateTex: error writing result file $resultFile " ); }
 
   return $hash;
 }
-
-
-
-
 
 
 }
