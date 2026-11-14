@@ -20,7 +20,6 @@ The intended installation point of Parsifal is extensions/Parsifal.
 | /log              |  log files of the extension |
 | /php              |  php source files |
 | /template         |  templates for external processors (such as LaTeX, HTML error parser etc ) |
-| /vendor           |  where we keep entire vendor files |
 | config.php        |  configuration of the extension |
 | extension.json    |  standard Mediawiki extension json file |
 | install           |  shell script for fixing the extension |

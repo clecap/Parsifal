@@ -196,8 +196,7 @@ class ParsifalReset extends FormSpecialPage {
    * @return void
    */
   private function clearSidebar () {
-    global $IP;
-    if ( file_exists ($IP."/sidebarcache") ) { unlink ( $IP."/sidebarcache" ); }
+    TreeAndMenu::invalidateSidebarCache ();   // DanteTree owns the cache file
     $this->done[] = 'Sidebar cache: cleared';
   }
 
