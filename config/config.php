@@ -106,8 +106,6 @@ const ATT_DEFAULT_NAME = "Info";
 
 
 /*** Components which may be addressed via URL */
-const ENDPOINT_URL       = "/extensions/Parsifal/endpoints/tex-preview.php";           // endpoint for the preview
-const ENDPOINT_REFRESH   = "/extensions/Parsifal/endpoints/tex-refresh.php";           // endpoint for the preview
 const HTML_URL           = "/extensions/Parsifal/html/";                               // path to the html directory containing texLog.html and others
 
 ?>

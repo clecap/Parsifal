@@ -39,7 +39,6 @@ It currently is used as part of clecap/dante-wiki and probably will not work wit
 
 * [Author Cheat Sheet](doc/AUTHOR.md)
 * [Goals](doc/GOALS.md)
-* [Installation](doc/INSTALL.md)
 
 ## Requirements
 
@@ -52,8 +51,6 @@ As mediawiki extensionm Parsifal requires DantePresentations (for the preview fu
 * **Existing bugs** can be found in github issues.
 * **Planned features** can be found in github issues.
 * **Feature requests** should be reported in github issues.
-* **Coding style** is idiosyncratic. Sorry for that.
 
-# Additional convenience functions
 
 
